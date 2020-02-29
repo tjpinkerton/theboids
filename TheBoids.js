@@ -1421,19 +1421,19 @@ window.onload = function() {
         } );
         // make sure that we stay on the screen
         theBoids.forEach(function(boid) {
-            if (boid.x >= canvas.width) {
+            if ( (boid.x >= canvas.width) && (boid.vx >= 0) ) {
                 boid.vx = -boid.vx;
                 boid.collide();
             }
-            else if (boid.x <= 0) {
+            else if ( (boid.x <= 0) && (boid.vx <= 0) ) {
                 boid.vx = -boid.vx;
                 boid.collide();
             }
-            if (boid.y >= canvas.height) {
+            if ( (boid.y >= canvas.height) && (boid.vy >= 0) ) {
                 boid.vy = -boid.vy;
                 boid.collide();
             }
-            else if (boid.y <= 0) {
+            else if ( (boid.y <= 0) && (boid.vy <= 0) ) {
                 boid.vy = -boid.vy;
                 boid.collide();
             }
