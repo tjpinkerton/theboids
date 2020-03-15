@@ -1019,6 +1019,12 @@ window.onload = function() {
             div.lastChild.remove();
             div.lastChild.remove();
         }
+        //Remove checkbox for "Monogamous Reproduction", if it exists
+        if (document.getElementById("monogamy") ) {
+            let div = document.getElementById("collisionOptionsDiv");
+            div.lastChild.remove();
+            div.lastChild.remove();
+        }
         //Remove number input for "Brood Size", if it exists
         if (document.getElementById("broodSize") ) {
             let div = document.getElementById("collisionOptionsDiv");
@@ -1026,12 +1032,7 @@ window.onload = function() {
             div.lastChild.remove();
             div.lastChild.remove();
         }
-        //Remove checkbox for "Monogamous Reproduction", if it exists
-        if (document.getElementById("monogamy") ) {
-            let div = document.getElementById("boidOptionsDiv");
-            div.lastChild.remove();
-            div.lastChild.remove();
-        }
+        
         //Remove slider for "Reproductive Cooldown", if it exists
         if (document.getElementById("reproduction") ) {
             let div = document.getElementById("boidOptionsDiv");
@@ -1050,16 +1051,16 @@ window.onload = function() {
             div.lastChild.remove();
             div.lastChild.remove();
         }
+        //Remove checkbox for "Monogamous Reproduction", if it exists
+        if (document.getElementById("monogamy") ) {
+            let div = document.getElementById("collisionOptionsDiv");
+            div.lastChild.remove();
+            div.lastChild.remove();
+        }
         //Remove number input for "Brood Size", if it exists
         if (document.getElementById("broodSize") ) {
             let div = document.getElementById("collisionOptionsDiv");
             div.lastChild.remove();
-            div.lastChild.remove();
-            div.lastChild.remove();
-        }
-        //Remove checkbox for "Monogamous Reproduction", if it exists
-        if (document.getElementById("monogamy") ) {
-            let div = document.getElementById("boidOptionsDiv");
             div.lastChild.remove();
             div.lastChild.remove();
         }
@@ -1081,16 +1082,16 @@ window.onload = function() {
             div.lastChild.remove();
             div.lastChild.remove();
         }
+        //Remove checkbox for "Monogamous Reproduction", if it exists
+        if (document.getElementById("monogamy") ) {
+            let div = document.getElementById("collisionOptionsDiv");
+            div.lastChild.remove();
+            div.lastChild.remove();
+        }
         //Remove number input for "Brood Size", if it exists
         if (document.getElementById("broodSize") ) {
             let div = document.getElementById("collisionOptionsDiv");
             div.lastChild.remove();
-            div.lastChild.remove();
-            div.lastChild.remove();
-        }
-        //Remove checkbox for "Monogamous Reproduction", if it exists
-        if (document.getElementById("monogamy") ) {
-            let div = document.getElementById("boidOptionsDiv");
             div.lastChild.remove();
             div.lastChild.remove();
         }
@@ -1158,7 +1159,7 @@ window.onload = function() {
             boidOptionsDiv.appendChild(newInput);
             boidOptionsDiv.appendChild(newLabel);
         }
-        //Create check-box and label for "Monogamy", if it doesn't already exist, and add to Boid Options div
+        //Create check-box and label for "Monogamy", if it doesn't already exist, and add to Collision Options div
         if (document.getElementById("monogamy") == null) {
             let newInput = document.createElement("input");
             newInput.setAttribute("type", "checkbox");
@@ -1168,9 +1169,9 @@ window.onload = function() {
             newLabel.setAttribute("for", "monogamy");
             newLabel.setAttribute("style", "float:right; margin-left:3em");
             newLabel.innerHTML = "Monogamous Reproduction";
-            let boidOptionsDiv = document.getElementById("boidOptionsDiv");
-            boidOptionsDiv.appendChild(newInput);
-            boidOptionsDiv.appendChild(newLabel);
+            let collisionOptionsDiv = document.getElementById("collisionOptionsDiv");
+            collisionOptionsDiv.appendChild(newInput);
+            collisionOptionsDiv.appendChild(newLabel);
         }
     };
 
