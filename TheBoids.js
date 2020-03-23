@@ -10,251 +10,6 @@
 
 
 /**
- * This class is used only in the special mode Predator.
- * It is a sort of alternate boid, which hunts the boids and (if it catches them) deletes them.
- */
-class Predator {
-    
-    /**
-     * Predator constructor
-     * 
-     * @param {number} x    - initial X position
-     * @param {number} y    - initial Y position
-     * @param {number} vx   - initial X velocity
-     * @param {number} vy   - initial Y velocity
-     * @param {number} mass - counter to keep track of Predator mass
-     */
-    constructor(x,y,vx=1,vy=0,mass=9) {
-        this.mass = mass;
-        let sizeMult = Math.sqrt(mass);
-        this.x = x;
-        this.y = y;
-        this.vx = sizeMult*vx;
-        this.vy = sizeMult*vy;
-        
-        
-        //Done to enable color change upon collision
-        this.collision = 0;
-    }
-
-    /**
-     * Helper function to initiate color change upon collision.
-     * The value hardcoded below determines how many frames the boid stays color-changed for.
-     * Note: Predation (collision <= 0) supercedes collision, in terms of color-state.
-     */
-    collide() {
-        if (this.collision >= 0)
-        this.collision = 15;
-    }
-
-    /**
-     * Helper function to initiate color change upon predatory collisions (boid consumption).
-     * 
-     * Note: 3 frames of the satiation cooldown is "built-in" to the draw method below--for this brief time 
-     * the Predator is still locked out of predation (collision < 0) but is displayed as white, in order to help
-     * the user distinguish between rapid subsequent predation events. Therefore, the cooldown must be greater
-     * than 10 frames--otherwise, the predator would never turn red. This is handled by the min value of the 
-     * Satiation Cooldown slider input (currently 6).
-     * 
-     * @param {Boid} boid - the boid being preyed upon
-     */
-    preyUpon(boid) {
-        let satiationCooldown = document.getElementById("predatorSatiation").value;
-        this.collision = -satiationCooldown;
-        //Update speed based on mass increase
-        let newMass = this.mass + boid.mass;
-        let sizeMultRatio = Math.sqrt(newMass) / Math.sqrt(this.mass);
-        this.vx *= sizeMultRatio;
-        this.vy *= sizeMultRatio;
-        this.mass += boid.mass;
-    }
-
-    /**
-     * Draw the Predator
-     * @param {CanvasRenderingContext2D} context 
-     */
-    draw(context) {
-        //Sqrt-based size multiplier
-        let sizeMult = Math.sqrt(this.mass);
-        context.save();
-        context.translate(this.x, this.y);
-        context.rotate(Math.atan2(this.vy,this.vx) );
-        context.fillStyle = "white";
-        context.strokeStyle = "black";
-        //Check for collision--if needed, change color
-        if (this.collision > 0) {
-            context.fillStyle = "black";
-            context.strokeStyle = "black";
-            this.collision--;
-        }
-        //Used for predatory-collisions -- Note: Special case for -3 < collision < 0, to avoid constant red-state in saturated prey environment (visual clarity)
-        if (this.collision < 0) {
-            if (this.collision < -3) {
-                context.fillStyle = "darkred";
-                context.strokeStyle = "black"; 
-            }
-            this.collision++;
-        }
-        //Draw body
-        context.beginPath();
-        context.moveTo(sizeMult*7,sizeMult*2);
-        context.lineTo(0,0);
-        context.lineTo(sizeMult*7,sizeMult*-2);
-        context.lineTo(sizeMult*-2,sizeMult*-5);
-        context.lineTo(sizeMult*-6,0);
-        context.lineTo(sizeMult*-2,sizeMult*5);
-        context.closePath();
-        context.fill();
-        context.stroke();
-
-        //To visualize collision radius
-        let collisionCircleOn = document.getElementById("showCollisionRadius").checked;
-        if (collisionCircleOn) { 
-            let collisionSlider = /** @type {HTMLInputElement} */ (document.getElementById("predatorCollisionRadius") );
-            let collisionRadius = Number(collisionSlider.value);
-            context.beginPath();
-            context.ellipse(0,0,collisionRadius*sizeMult,collisionRadius*sizeMult,0,0,Math.PI*2);
-            context.closePath();
-            context.strokeStyle = "gray";
-            context.stroke();
-        }
-
-        //To visualize neighborhood radius
-        let neighborhoodCircleOn = document.getElementById("showNeighborhoodRadius").checked;
-        if (neighborhoodCircleOn) {
-            let neighborhoodSlider = /** @type {HTMLInputElement} */ (document.getElementById("predatorNeighborhood") );
-            let neighborhoodRadius = Number(neighborhoodSlider.value);
-            context.beginPath();
-            context.ellipse(0,0,neighborhoodRadius,neighborhoodRadius,0,0,Math.PI*2);
-            context.closePath();
-            context.strokeStyle = "gray";
-            context.setLineDash([3,12]);
-            context.stroke();
-        }
-
-        context.restore();
-    }
-    
-    /**
-     * Perform the "steering" behavior for the Predator - simple attraction to nearest boid
-     * 
-     * @param {Array<Boid>} boids - array of all Boids on screen
-     * @param {Array<Predator>} predators - array of all predators on screen
-     * @param {String} specialMode - the special setting modes--such as "specialPredator" mode
-     * @param {PreyCounter} preyCounter - obj to keep track of Boids consumed by predators
-     */
-    steer(boids, predators, specialMode, preyCounter) {
-        let neighborhoodSlider = /** @type {HTMLInputElement} */ (document.getElementById("predatorNeighborhood") );
-        let neighborhoodRange = Number(neighborhoodSlider.value);
-        let turnSpeedSlider = /** @type {HTMLInputElement} */ (document.getElementById("predatorTurnSpeed") );
-        let turnSpeed = Number(turnSpeedSlider.value) * Math.PI/180;
-
-        //Filter to just the boids within neighborhood range
-        let neighbors = boids.filter(boid => {
-            let distance = Math.sqrt( Math.pow(this.x-boid.x, 2) + Math.pow(this.y-boid.y, 2) );
-            return distance < neighborhoodRange;
-        });
-        //Sort the neighbors by distance from this boid (note: may cause slow-downs when many boids on-screen!)
-        let sorted = neighbors.sort((a, b) => {
-            let distanceA = Math.sqrt( Math.pow(this.x-a.x, 2) + Math.pow(this.y-a.y, 2) );
-            let distanceB = Math.sqrt( Math.pow(this.x-b.x, 2) + Math.pow(this.y-b.y, 2) );
-            if (distanceA < distanceB){
-                return -1;
-            }
-            else if (distanceA > distanceB){
-                return 1;
-            }
-            else {
-                return 0;
-            }
-        });
-        //Get reference to nearest boid
-        let repulse = sorted[0];
-
-        //Calculate new direction--towards nearest boid (within restraint of turn speed)
-        let angle = Math.atan2(this.vy, this.vx);
-        let newAngle = angle;
-        //Make sure there is a boid within neighborhood range--if not, newAngle is just the previous orientation
-        if (repulse) {
-            let attractAngle = Math.atan2(repulse.y-this.y, repulse.x-this.x);
-            //If nearly aligned with repulsedAngle, simply set to it (avoids oversteering)
-            if (Math.abs(attractAngle - angle) < turnSpeed) {
-                newAngle = attractAngle;
-            }
-            //If attractAngle - angle is between 0 and pi, or -2pi and -pi, then turn counterclockwise (increase angle)
-            else if ( ( (attractAngle - angle < Math.PI) && (attractAngle - angle > 0) ) || (attractAngle - angle < -Math.PI) ) {
-                newAngle = angle + turnSpeed;
-            }
-            //If attractAngle - angle is between pi and 2pi, or -pi and 0, then turn clockwise (decrease angle)
-            else if ( (attractAngle - angle >= Math.PI) || ( (attractAngle - angle <= 0) && (attractAngle - angle >= -Math.PI) ) ) {
-                newAngle = angle - turnSpeed;
-            }
-        }
-
-        //Update velocity--note, we go out of our way to not re-unitize it, so that merge collisions can work as intended
-        let currSpeed = Math.sqrt(Math.pow(this.vx, 2) + Math.pow(this.vy, 2) );
-        this.vx = currSpeed * Math.cos(newAngle);
-        this.vy = currSpeed * Math.sin(newAngle);
-        
-        //Handle collisions via helper method
-        this.handleCollision(boids, predators, specialMode, preyCounter);
-    }
-
-    /**
-     * Helper function (called by steer() ) to check for and handle collisions, depending on the mode set by user.
-     * 
-     * @param {Array<Boid>} boids - array of all Boids on the screen
-     * @param {Array<Predator>} predators - array of all Predators on screen
-     * @param {String} specialMode - the special setting modes--such as "specialPredator" mode
-     * @param {PreyCounter} preyCounter - obj that keeps track of predation events
-     */
-    handleCollision(boids, predators, specialMode, preyCounter) {
-        let collisionSlider = /** @type {HTMLInputElement} */ (document.getElementById("predatorCollisionRadius") );
-        let collisionRadius = Number(collisionSlider.value);
-        let sizeMult = Math.sqrt(this.mass);
-
-        //Check for predator-predator collisions 
-        let collided = predators.filter( predator => {
-            let distance = Math.sqrt(Math.pow(predator.x-this.x, 2) + Math.pow(predator.y-this.y, 2) );
-            return (distance < collisionRadius*sizeMult) && (distance != 0);
-        } );
-        //Handle predator-predator collisions, if any
-        if (collided[0] ) {
-            let newAngle = Math.atan2(this.y-collided[0].y, this.x-collided[0].x);
-            let currSpeed = Math.sqrt(Math.pow(this.vx,2) + Math.pow(this.vy,2) );
-            this.vx = currSpeed*Math.cos(newAngle);
-            this.vy = currSpeed*Math.sin(newAngle);
-            let otherSpeed = Math.sqrt(Math.pow(collided[0].vx,2) + Math.pow(collided[0].vy,2) );
-            collided[0].vx = otherSpeed*-Math.cos(newAngle);
-            collided[0].vy = otherSpeed*-Math.sin(newAngle);                
-            collided[0].collide();
-            this.collide();
-        }
-        
-        //Check for predator-boid collisions
-        let prey = boids.filter( boid => {
-            let distance = Math.sqrt(Math.pow(boid.x-this.x, 2) + Math.pow(boid.y-this.y, 2) );
-            return (distance < collisionRadius*sizeMult);
-        } );
-        //Handle predator-boid collisions, if any
-        if (prey[0] ) {
-            //Check for satiation (cooldown period for eating boids)
-            if (this.collision >= 0) {
-                //Find prey boid in array of all boids
-                let preyIndex = boids.indexOf(prey[0] );
-                //Make sure the prey boid was found in array of all boids
-                if (preyIndex > -1) {
-                    boids.splice(preyIndex, 1);
-                    this.preyUpon(prey[0] );
-                    preyCounter.updateCount();
-                }
-                else throw new Error("Boid from prey[] not found in boids[]--this should not be possible, something has gone wrong!");
-            }
-        }
-    }
-}
-
-/**
  * This class represents the object which is the core of the entire program--the Boid.
  */
 class Boid {
@@ -831,22 +586,487 @@ class Boid {
 
 }
 
-//Set-up counter for boid reproductions--has to be an object so that it can be passed as a reference, so that changes persist outside of functions
-class ReproductionCounter {
-    constructor() {
-        this.count = 0;
+
+/**
+ * This class is used only in the special mode Predator.
+ * It is a sort of alternate boid, which hunts the boids and (if it catches them) deletes them.
+ */
+class Predator {
+    
+    /**
+     * Predator constructor
+     * 
+     * @param {number} x    - initial X position
+     * @param {number} y    - initial Y position
+     * @param {number} vx   - initial X velocity
+     * @param {number} vy   - initial Y velocity
+     * @param {number} mass - counter to keep track of Predator mass
+     */
+    constructor(x,y,vx=1,vy=0,mass=9) {
+        this.mass = mass;
+        let sizeMult = Math.sqrt(mass);
+        this.x = x;
+        this.y = y;
+        this.vx = sizeMult*vx;
+        this.vy = sizeMult*vy;
+        
+        
+        //Done to enable color change upon collision
+        this.collision = 0;
     }
-    updateCount() {
-        this.count++;
+
+    /**
+     * Helper function to initiate color change upon collision.
+     * The value hardcoded below determines how many frames the boid stays color-changed for.
+     * Note: Predation (collision <= 0) supercedes collision, in terms of color-state.
+     */
+    collide() {
+        if (this.collision >= 0)
+        this.collision = 15;
     }
-    //Note, since reproductions aren't double-reported, no need to fudge the count here as with collisions
-    getCount() {
-        return this.count;
+
+    /**
+     * Helper function to initiate color change upon predatory collisions (boid consumption).
+     * 
+     * Note: 3 frames of the satiation cooldown is "built-in" to the draw method below--for this brief time 
+     * the Predator is still locked out of predation (collision < 0) but is displayed as white, in order to help
+     * the user distinguish between rapid subsequent predation events. Therefore, the cooldown must be greater
+     * than 3 frames--otherwise, the predator would never turn red. This is handled by the min value of the 
+     * Satiation Cooldown slider input (currently 6).
+     * 
+     * @param {Boid} boid - the boid being preyed upon
+     */
+    preyUpon(boid) {
+        let satiationCooldown = document.getElementById("predatorSatiation").value;
+        this.collision = -satiationCooldown;
+        //Update speed based on mass increase
+        let newMass = this.mass + boid.mass;
+        let sizeMultRatio = Math.sqrt(newMass) / Math.sqrt(this.mass);
+        this.vx *= sizeMultRatio;
+        this.vy *= sizeMultRatio;
+        this.mass += boid.mass;
     }
-    resetCount() {
-        this.count = 0;
+
+    /**
+     * Draw the Predator
+     * @param {CanvasRenderingContext2D} context 
+     */
+    draw(context) {
+        //Sqrt-based size multiplier
+        let sizeMult = Math.sqrt(this.mass);
+        context.save();
+        context.translate(this.x, this.y);
+        context.rotate(Math.atan2(this.vy,this.vx) );
+        context.fillStyle = "white";
+        context.strokeStyle = "black";
+        //Check for collision--if needed, change color
+        if (this.collision > 0) {
+            context.fillStyle = "black";
+            context.strokeStyle = "black";
+            this.collision--;
+        }
+        //Used for predatory-collisions -- Note: Special case for -3 < collision < 0, to avoid constant red-state in saturated prey environment (visual clarity)
+        if (this.collision < 0) {
+            if (this.collision < -3) {
+                context.fillStyle = "darkred";
+                context.strokeStyle = "black"; 
+            }
+            this.collision++;
+        }
+        //Draw body
+        context.beginPath();
+        context.moveTo(sizeMult*7,sizeMult*2);
+        context.lineTo(0,0);
+        context.lineTo(sizeMult*7,sizeMult*-2);
+        context.lineTo(sizeMult*-2,sizeMult*-5);
+        context.lineTo(sizeMult*-6,0);
+        context.lineTo(sizeMult*-2,sizeMult*5);
+        context.closePath();
+        context.fill();
+        context.stroke();
+
+        //To visualize collision radius
+        let collisionCircleOn = document.getElementById("showCollisionRadius").checked;
+        if (collisionCircleOn) { 
+            let collisionSlider = /** @type {HTMLInputElement} */ (document.getElementById("predatorCollisionRadius") );
+            let collisionRadius = Number(collisionSlider.value);
+            context.beginPath();
+            context.ellipse(0,0,collisionRadius*sizeMult,collisionRadius*sizeMult,0,0,Math.PI*2);
+            context.closePath();
+            context.strokeStyle = "gray";
+            context.stroke();
+        }
+
+        //To visualize neighborhood radius
+        let neighborhoodCircleOn = document.getElementById("showNeighborhoodRadius").checked;
+        if (neighborhoodCircleOn) {
+            let neighborhoodSlider = /** @type {HTMLInputElement} */ (document.getElementById("predatorNeighborhood") );
+            let neighborhoodRadius = Number(neighborhoodSlider.value);
+            context.beginPath();
+            context.ellipse(0,0,neighborhoodRadius,neighborhoodRadius,0,0,Math.PI*2);
+            context.closePath();
+            context.strokeStyle = "gray";
+            context.setLineDash([3,12]);
+            context.stroke();
+        }
+
+        context.restore();
+    }
+    
+    /**
+     * Perform the "steering" behavior for the Predator - simple attraction to nearest boid
+     * 
+     * @param {Array<Boid>} boids - array of all Boids on screen
+     * @param {Array<Predator>} predators - array of all predators on screen
+     * @param {String} specialMode - the special setting modes--such as "specialPredator" mode
+     * @param {PreyCounter} preyCounter - obj to keep track of Boids consumed by predators
+     */
+    steer(boids, predators, specialMode, preyCounter) {
+        let neighborhoodSlider = /** @type {HTMLInputElement} */ (document.getElementById("predatorNeighborhood") );
+        let neighborhoodRange = Number(neighborhoodSlider.value);
+        let turnSpeedSlider = /** @type {HTMLInputElement} */ (document.getElementById("predatorTurnSpeed") );
+        let turnSpeed = Number(turnSpeedSlider.value) * Math.PI/180;
+
+        //Filter to just the boids within neighborhood range
+        let neighbors = boids.filter(boid => {
+            let distance = Math.sqrt( Math.pow(this.x-boid.x, 2) + Math.pow(this.y-boid.y, 2) );
+            return distance < neighborhoodRange;
+        });
+        //Sort the neighbors by distance from this boid (note: may cause slow-downs when many boids on-screen!)
+        let sorted = neighbors.sort((a, b) => {
+            let distanceA = Math.sqrt( Math.pow(this.x-a.x, 2) + Math.pow(this.y-a.y, 2) );
+            let distanceB = Math.sqrt( Math.pow(this.x-b.x, 2) + Math.pow(this.y-b.y, 2) );
+            if (distanceA < distanceB){
+                return -1;
+            }
+            else if (distanceA > distanceB){
+                return 1;
+            }
+            else {
+                return 0;
+            }
+        });
+        //Get reference to nearest boid
+        let repulse = sorted[0];
+
+        //Calculate new direction--towards nearest boid (within restraint of turn speed)
+        let angle = Math.atan2(this.vy, this.vx);
+        let newAngle = angle;
+        //Make sure there is a boid within neighborhood range--if not, newAngle is just the previous orientation
+        if (repulse) {
+            let attractAngle = Math.atan2(repulse.y-this.y, repulse.x-this.x);
+            //If nearly aligned with repulsedAngle, simply set to it (avoids oversteering)
+            if (Math.abs(attractAngle - angle) < turnSpeed) {
+                newAngle = attractAngle;
+            }
+            //If attractAngle - angle is between 0 and pi, or -2pi and -pi, then turn counterclockwise (increase angle)
+            else if ( ( (attractAngle - angle < Math.PI) && (attractAngle - angle > 0) ) || (attractAngle - angle < -Math.PI) ) {
+                newAngle = angle + turnSpeed;
+            }
+            //If attractAngle - angle is between pi and 2pi, or -pi and 0, then turn clockwise (decrease angle)
+            else if ( (attractAngle - angle >= Math.PI) || ( (attractAngle - angle <= 0) && (attractAngle - angle >= -Math.PI) ) ) {
+                newAngle = angle - turnSpeed;
+            }
+        }
+
+        //Update velocity--note, we go out of our way to not re-unitize it, so that merge collisions can work as intended
+        let currSpeed = Math.sqrt(Math.pow(this.vx, 2) + Math.pow(this.vy, 2) );
+        this.vx = currSpeed * Math.cos(newAngle);
+        this.vy = currSpeed * Math.sin(newAngle);
+        
+        //Handle collisions via helper method
+        this.handleCollision(boids, predators, specialMode, preyCounter);
+    }
+
+    /**
+     * Helper function (called by steer() ) to check for and handle collisions, depending on the mode set by user.
+     * 
+     * @param {Array<Boid>} boids - array of all Boids on the screen
+     * @param {Array<Predator>} predators - array of all Predators on screen
+     * @param {String} specialMode - the special setting modes--such as "specialPredator" mode
+     * @param {PreyCounter} preyCounter - obj that keeps track of predation events
+     */
+    handleCollision(boids, predators, specialMode, preyCounter) {
+        let collisionSlider = /** @type {HTMLInputElement} */ (document.getElementById("predatorCollisionRadius") );
+        let collisionRadius = Number(collisionSlider.value);
+        let sizeMult = Math.sqrt(this.mass);
+
+        //Check for predator-predator collisions 
+        let collided = predators.filter( predator => {
+            let distance = Math.sqrt(Math.pow(predator.x-this.x, 2) + Math.pow(predator.y-this.y, 2) );
+            return (distance < collisionRadius*sizeMult) && (distance != 0);
+        } );
+        //Handle predator-predator collisions, if any
+        if (collided[0] ) {
+            let newAngle = Math.atan2(this.y-collided[0].y, this.x-collided[0].x);
+            let currSpeed = Math.sqrt(Math.pow(this.vx,2) + Math.pow(this.vy,2) );
+            this.vx = currSpeed*Math.cos(newAngle);
+            this.vy = currSpeed*Math.sin(newAngle);
+            let otherSpeed = Math.sqrt(Math.pow(collided[0].vx,2) + Math.pow(collided[0].vy,2) );
+            collided[0].vx = otherSpeed*-Math.cos(newAngle);
+            collided[0].vy = otherSpeed*-Math.sin(newAngle);                
+            collided[0].collide();
+            this.collide();
+        }
+        
+        //Check for predator-boid collisions
+        let prey = boids.filter( boid => {
+            let distance = Math.sqrt(Math.pow(boid.x-this.x, 2) + Math.pow(boid.y-this.y, 2) );
+            return (distance < collisionRadius*sizeMult);
+        } );
+        //Handle predator-boid collisions, if any
+        if (prey[0] ) {
+            //Check for satiation (cooldown period for eating boids)
+            if (this.collision >= 0) {
+                //Find prey boid in array of all boids
+                let preyIndex = boids.indexOf(prey[0] );
+                //Make sure the prey boid was found in array of all boids
+                if (preyIndex > -1) {
+                    boids.splice(preyIndex, 1);
+                    this.preyUpon(prey[0] );
+                    preyCounter.updateCount();
+                }
+                else throw new Error("Boid from prey[] not found in boids[]--this should not be possible, something has gone wrong!");
+            }
+        }
     }
 }
+
+
+/**
+ * This class is used only in the special mode Teleporter.
+ * It is a sort of alternate boid, which wanders the screen and (upon collision) teleports both Boids and Predators to a random location.
+ */
+class Teleporter {
+    
+    /**
+     * Teleporter constructor
+     * 
+     * @param {number} x    - initial X position
+     * @param {number} y    - initial Y position
+     * @param {number} vx   - initial X velocity
+     * @param {number} vy   - initial Y velocity
+     * @param {number} mx   - momentum in X direction
+     * @param {number} my   - momentum in Y direction
+     */
+    constructor(x,y,vx=0,vy=0,mx,my) {
+        this.x = x;
+        this.y = y;
+        this.vx = vx;
+        this.vy = vy;
+        this.mx = mx;
+        this.my = my;
+          
+        //Done to enable color change upon collision
+        this.collision = 0;
+    }
+
+    /**
+     * Helper function to initiate color change upon collision.
+     * The value hardcoded below determines how many frames the Teleporter stays color-changed for.
+     */
+    collide() {
+        if (this.collision >= 0)
+        this.collision = 15;
+    }
+
+    /**
+     * Helper function to initiate color change upon teleportation-based collision.
+     * 
+     * Note: 3 frames of the teleport cooldown is "built-in" to the draw method below--for this brief time 
+     * the Teleporter is still locked out of further teleportation (collision < 0) but is displayed as default, in order to help
+     * the user distinguish between rapid subsequent teleportation events. Therefore, the cooldown must be greater
+     * than 3 frames--otherwise, the teleporter might never turn color. This is handled by the min value of the 
+     * Teleportation Cooldown slider input (currently 6).
+     * 
+     * @param {Predator, Boid} teleportee   - the teleported creature (Predator or Boid)     
+     * @param {HTMLCanvasElement} canvas    - the canvas in which drawing context resides; passed in for location randomization (canvas.width, canvas.height) if needed
+     */
+    teleport(teleportee, canvas) {
+        let teleportCooldown = document.getElementById("teleporterCooldown").value;
+        this.collision = -teleportCooldown;
+        //Send teleportee to random location
+        teleportee.x = Math.random() * canvas.width;
+        teleportee.y = Math.random() * canvas.height;
+    }
+
+    /**
+     * Draw the Teleporter.
+     * @param {CanvasRenderingContext2D} context 
+     */
+    draw(context) {
+        context.save();
+        context.translate(this.x, this.y);
+        context.rotate(Math.atan2(this.vy,this.vx) );
+        context.fillStyle = "dark-gray";
+        //Check for collision--if needed, change color
+        if (this.collision > 0) {
+            context.fillStyle = "black";
+            this.collision--;
+        }
+        //Check for teleportation collision state--note, special case for 0 > collision > -3, to ensure visual clarity in case of rapid teleportations
+        if (this.collision < 0) {
+            if (this.collision < -3) {
+                context.fillStyle = "purple";
+            }
+            this.collision++;
+        }
+        //Draw body
+        context.beginPath();
+        context.ellipse(0,0,20,20,0,0,Math.PI*2);
+        context.closePath();
+        context.fill();
+
+        //To visualize collision radius
+        let collisionCircleOn = document.getElementById("showCollisionRadius").checked;
+        if (collisionCircleOn) { 
+            let collisionSlider = /** @type {HTMLInputElement} */ (document.getElementById("teleporterCollisionRadius") );
+            let collisionRadius = Number(collisionSlider.value);
+            context.beginPath();
+            context.ellipse(0,0,collisionRadius,collisionRadius,0,0,Math.PI*2);
+            context.closePath();
+            context.strokeStyle = "gray";
+            context.stroke();
+        }
+
+        context.restore();
+    }
+    
+    /**
+     * Perform the "steering" behavior for the Teleporter--random drifting, with an attempt to simulate momentum
+     * 
+     * @param {Array<Boid>} boids               - array of all Boids on screen
+     * @param {Array<Predator>} predators       - array of all Predators on screen 
+     * @param {Array<Teleporter>} teleporters   - array of all Teleporters on screen
+     * @param {TeleportCounter} teleportCounter - obj to keep track of number of Boids/Predators teleported
+     * @param {HTMLCanvasElement} canvas        - the canvas in which drawing context resides; passed in for location randomization (canvas.width, canvas.height) if needed
+     */
+    steer(boids, predators, teleporters, teleportCounter, canvas) {
+        let momentumSlider = /** @type {HTMLInputElement} */ (document.getElementById("teleporterMomentum") );
+        let momentumScale = Number(momentumSlider.value);
+
+        //Randomly generate accelerations (between -1 and 1) to modify the speed in both X and Y directions
+        let ax = Math.random() * 2 - 1;
+        let ay = Math.random() * 2 - 1;
+
+        //Modify accelerations according to momentum and momentumScale (from Momentum slider), but keep them between -1 and 1
+        ax += this.mx;
+        if (ax >= 1) ax = 1;
+        if (ax <= -1) ax = -1;
+        ay += this.my;
+        if (ay >= 1) ay = 1;
+        if (ay <= -1) ay = -1;
+
+        //Save old velocities, for use below in momentum updates
+        let oldvx = this.vx;
+        let oldvy = this.vy;
+
+        //Update velocities, based on new accelerations (note: accelerations scaled by 100/momentumScale)
+        this.vx += ax / momentumScale / 100;
+        this.vy += ay / momentumScale / 100;
+        //Enforce a cap on velocities
+        let maxSpeed = document.getElementById("teleporterSpeed").value;
+        if (Math.abs(this.vx) > 3) {
+            this.vx = Math.sign(this.vx) * maxSpeed;
+        }
+        if (Math.abs(this.vy) > 3) {
+            this.vy = Math.sign(this.vy) * maxSpeed;
+        }
+
+        //Update momentums--generally increase/decrease (toward opposition of velocity) by set amount; 
+        //      when the sign of the corresponding velocity changes (not due to collision), reset momentum to +/- momentumScale as appropriate
+        // x direction
+        if (this.vx / oldvx <= 0) {
+            this.mx = Math.sign(this.vx) * momentumScale;
+        }
+        else {
+            this.mx -= Math.sign(this.vx) * momentumScale / 60;
+        }
+        // y direction
+        if (this.vy / oldvy <= 0) {
+            this.my = Math.sign(this.vy) * momentumScale;
+        }
+        else {
+            this.mx -= Math.sign(this.vy) * momentumScale / 60;
+        }
+        
+        //Handle collisions via helper method
+        this.handleCollision(boids, predators, teleporters, teleportCounter, canvas);
+    }
+
+    /**
+     * Helper function (called by steer() ) to check for and handle collisions, depending on the mode set by user.
+     * 
+     * @param {Array<Boid>} boids               - array of all Boids on the screen
+     * @param {Array<Predator>} predators       - array of all Predators on screen
+     * @param {Array<Teleporter} teleporters    - array of all Teleporters on screen
+     * @param {PreyCounter} teleportCounter     - obj that keeps track of number of Boids/Predators teleported
+     * @param {HTMLCanvasElement} canvas        - the canvas in which drawing context resides; passed in for location randomization (canvas.width, canvas.height) if needed
+     */
+    handleCollision(boids, predators, teleporters, teleportCounter, canvas) {
+        let collisionSlider = /** @type {HTMLInputElement} */ (document.getElementById("teleporterCollisionRadius") );
+        let collisionRadius = Number(collisionSlider.value);
+
+        //Check for teleporter-teleporter collisions 
+        let collided = teleporters.filter( teleporter => {
+            let distance = Math.sqrt(Math.pow(teleporter.x-this.x, 2) + Math.pow(teleporter.y-this.y, 2) );
+            return (distance < collisionRadius) && (distance != 0);
+        } );
+        //Handle teleporter-teleporter collisions, if any
+        if (collided[0] ) {
+            let newAngle = Math.atan2(this.y-collided[0].y, this.x-collided[0].x);
+            let currSpeed = Math.sqrt(Math.pow(this.vx,2) + Math.pow(this.vy,2) );
+            this.vx = currSpeed*Math.cos(newAngle);
+            this.vy = currSpeed*Math.sin(newAngle);
+            let otherSpeed = Math.sqrt(Math.pow(collided[0].vx,2) + Math.pow(collided[0].vy,2) );
+            collided[0].vx = otherSpeed*-Math.cos(newAngle);
+            collided[0].vy = otherSpeed*-Math.sin(newAngle);                
+            collided[0].collide();
+            this.collide();
+        }
+        
+        //Check for teleporter-predator collisions
+        let teleportedPredators = predators.filter( predator => {
+            let distance = Math.sqrt(Math.pow(predator.x-this.x, 2) + Math.pow(predator.y-this.y, 2) );
+            return (distance < collisionRadius*Math.sqrt(predator.mass) );
+        } );
+        //Handle teleporter-predator collisions, if any
+        if (teleportedPredators[0] ) {
+            //Check for teleportation cooldown
+            if (this.collision >= 0) {
+                //Find teleported predator in array of all predators
+                let targetIndex = predators.indexOf(teleportedPredators[0] );
+                //Make sure the target predator was found in array of all predators
+                if (targetIndex > -1) {
+                    this.teleport(teleportedPredators[0], canvas);
+                    teleportCounter.updateCount();
+                }
+                else throw new Error("Predator from teleportedPredators[] not found in predators[]--this should not be possible, something has gone wrong!");
+            }
+        }
+
+        //Check for teleporter-boid collisions
+        let teleportedBoids = boids.filter(boid => {
+            let distance = Math.sqrt(Math.pow(boid.x - this.x, 2) + Math.pow(boid.y - this.y, 2));
+            return (distance < collisionRadius * Math.sqrt(boid.mass));
+        });
+        //Handle teleporter-boid collisions, if any
+        if (teleportedBoids[0]) {
+            //Check for teleportation cooldown
+            if (this.collision >= 0) {
+                //Find teleported boid in array of all boids
+                let targetIndex = boids.indexOf(teleportedBoids[0]);
+                //Make sure the target boid was found in array of all boids
+                if (targetIndex > -1) {
+                    this.teleport(teleportedBoids[0], canvas);
+                    teleportCounter.updateCount();
+                }
+                else throw new Error("Boid from teleportedBoids[] not found in boids[]--this should not be possible, something has gone wrong!");
+            }
+        }
+    }
+}
+
 
 //Set-up counter for boid collisions--has to be an object so that it can be passed to boid methods as a reference (rather than a simple value)
 class CollisionCounter {
@@ -869,8 +1089,41 @@ class CollisionCounter {
     }
 }
 
-//Set-up counter for Predator special mode--has to be an object so that it can be passed to boid methods as a reference
+//Set-up counter for boid reproductions--has to be an object so that it can be passed as a reference, so that changes persist outside of functions
+class ReproductionCounter {
+    constructor() {
+        this.count = 0;
+    }
+    updateCount() {
+        this.count++;
+    }
+    //Note, since reproductions aren't double-reported, no need to fudge the count here as with collisions
+    getCount() {
+        return this.count;
+    }
+    resetCount() {
+        this.count = 0;
+    }
+}
+
+//Set-up counter for Predator special mode--has to be an object so that it can be passed to boid methods as a reference, so changes persist outside of functions
 class PreyCounter {
+    constructor() {
+        this.count = 0;
+    }
+    updateCount() {
+        this.count++;
+    }
+    getCount() {
+        return this.count;
+    }
+    resetCount() {
+        this.count = 0;
+    }
+}
+
+//Set-up counter for Teleporter special mode--has to be an object so that it can be passed to boid methods as a reference, so changes persist outside of functions
+class TeleportCounter {
     constructor() {
         this.count = 0;
     }
@@ -922,16 +1175,22 @@ window.onload = function() {
     let theBoids = [];
     /** @type Array<Predator> */
     let thePredators = [];
+    /** @type Array<Teleporter> */
+    let theTeleporters = [];
 
-    let canvas = /** @type {HTMLCanvasElement} */ (document.getElementById("flock"));
+    let canvas = /** @type {HTMLCanvasElement} */ (document.getElementById("canvas"));
     let context = canvas.getContext("2d");
+    //Set canvas to more appropriate size
+    let canvasSize = Math.min(document.documentElement.clientHeight, document.documentElement.clientWidth) - 85;
+    canvas.width = canvasSize;
+    canvas.height = canvasSize;
 
     //Default behavior mode (default checked radio box)
     let behaviorMode = "behaviorIgnore";
     //Default collision mode (default checked radio box)
     let collisionMode = "collisionIgnore";
-    //Default special options mode (default checked radio box)
-    let specialMode = "specialNone";
+    //Default special options mode (neither checkbox checked)
+    let specialMode = "";
 
     //Set time on page load
     document.getElementById("timeSinceClear").value = new Date().toLocaleTimeString();
@@ -939,24 +1198,23 @@ window.onload = function() {
     let collisionCounter = new CollisionCounter();
     let reproductionCounter = new ReproductionCounter();
     let preyCounter = new PreyCounter();
+    let teleportCounter = new TeleportCounter();
 
     //Create fps counter
     let fpsCounter = new FrameRateCounter();
     let prevTime, currTime;
 
     /**
-     * Utility function, to bundle the drawing of each boid into a single function call
+     * Utility function, to bundle the drawing of everything into a single function call
      */
     function draw() {
         context.clearRect(0,0,canvas.width,canvas.height);
-        theBoids.forEach(boid => boid.draw(context));
-        thePredators.forEach(predator => predator.draw(context));
+        theBoids.forEach(boid => boid.draw(context) );
+        thePredators.forEach(predator => predator.draw(context) );
+        theTeleporters.forEach(teleporter => teleporter.draw(context) );
     }
 
-    /**
-     * Create some initial boids
-     * STUDENT: may want to replace this
-     */
+    //Create some initial boids
     rngenerateBoid();
     rngenerateBoid();
     rngenerateBoid();
@@ -985,6 +1243,7 @@ window.onload = function() {
     document.getElementById("clear").onclick = function() {
         theBoids = [];
         thePredators = [];
+        theTeleporters = [];
         collisionCounter.resetCount();
         reproductionCounter.resetCount();
         preyCounter.resetCount();
@@ -1176,53 +1435,30 @@ window.onload = function() {
     };
 
     /**
-     * Handle the disabling of special modes
-     * Note: Special options, when selected, will disable the behavior and collision option input elements--the special options override these more basic controls
-     */
-    this.document.getElementById("specialNone").onclick = function() {
-        specialMode = "specialNone";
-        //Remove counter for "Boids Preyed Upon", if it exists
-        if (document.getElementById("boidsPreyedUpon") ) {
-            let div = document.getElementById("boidPopulation").parentElement;
-            div.lastChild.remove();
-            div.lastChild.remove();
-            div.lastChild.remove();
-        }
-        //Remove button for "Add Predator", if it exists
-        if (document.getElementById("addPredator") ) {
-            let div = document.getElementById("add1").parentElement;
-            div.lastChild.remove();
-            div.lastChild.remove();
-        }
-        //Remove div (including all sliders, labels, etc) for Predator Options, if it exists
-        if (document.getElementById("predatorOptionsDiv") ) {
-            let child = document.getElementById("predatorOptionsDiv");
-            child.parentNode.removeChild(child);
-        }
-        //Empty array of Predators, so they don't continue to appear on screen
-        thePredators = [];
-    };
-
-    /**
-     * Handle the enabling of the Predator special mode
+     * Handle the enabling/disabling of the Predator special mode
      */
     this.document.getElementById("specialPredator").onclick = function() {
-        specialMode = "specialPredator";
-        //Create button to "Add Predator", if it doesn't already exist
-        if (document.getElementById("addPredator") == null) {
-            //Also add a predator
+        //Check whether we need to enable or disable
+        if (document.getElementById("specialPredator").checked) {
+            //Enable special mode Predator
+            specialMode += "specialPredator";
+            //Add a predator
             rngeneratePredator();
-            let newButton = document.createElement("button");
-            newButton.setAttribute("id", "addPredator");
-            newButton.setAttribute("value", "0");
-            newButton.setAttribute("style", "margin-left: 1em");
-            newButton.innerHTML = "Add Predator";
-            newButton.onclick = rngeneratePredator;
-            document.getElementById("add1").parentElement.appendChild(document.createElement("br") );
-            document.getElementById("add1").parentElement.appendChild(newButton);
-        }
-        //Create counter for "Boids Preyed Upon", if it doesn't already exist
-        if (document.getElementById("boidsPreyedUpon") == null) {
+
+            //Create button to "Add Predator"
+            let buttonAddPredator = document.createElement("button");
+            buttonAddPredator.setAttribute("id", "addPredator");
+            buttonAddPredator.setAttribute("value", "0");
+            buttonAddPredator.setAttribute("style", "margin-left: 1em");
+            buttonAddPredator.innerHTML = "Add Predator";
+            buttonAddPredator.onclick = rngeneratePredator;
+            //Check if "Add Teleporter" button exists--if not, add this to a new line
+            if (!document.getElementById("addTeleporter") ) {
+                document.getElementById("add1").parentElement.appendChild(document.createElement("br"));
+            }
+            document.getElementById("add1").parentElement.appendChild(buttonAddPredator);
+
+            //Create counter for "Boids Preyed Upon"
             let newInput = document.createElement("input");
             newInput.setAttribute("type", "text");
             newInput.setAttribute("readonly", "true");
@@ -1233,12 +1469,10 @@ window.onload = function() {
             newLabel.setAttribute("for", "boidsPreyedUpon");
             newLabel.setAttribute("style", "margin-left: 1em");
             newLabel.innerHTML = "Boids Preyed Upon: ";
-            document.getElementById("boidPopulation").parentElement.appendChild(document.createElement("br") );
+            document.getElementById("boidPopulation").parentElement.appendChild(document.createElement("br"));
             document.getElementById("boidPopulation").parentElement.appendChild(newLabel);
             document.getElementById("boidPopulation").parentElement.appendChild(newInput);
-        }
-        //Create control sliders for predators, if they don't already exist
-        if (document.getElementById("predatorOptionsDiv") == null) {
+
             //Create and add to DOM the div containing the sliders
             let div = document.createElement("div");
             div.setAttribute("id", "predatorOptionsDiv");
@@ -1265,7 +1499,7 @@ window.onload = function() {
             predatorSpeedLabel.setAttribute("for", "predatorSpeed");
             div.appendChild(predatorSpeed);
             div.appendChild(predatorSpeedLabel);
-            div.appendChild(document.createElement("br") );
+            div.appendChild(document.createElement("br"));
             //Create and add to div the predatorNeighborhood slider, label, and line break
             let predatorNeighborhood = document.createElement("input");
             predatorNeighborhood.setAttribute("type", "range");
@@ -1281,7 +1515,7 @@ window.onload = function() {
             predatorNeighborhoodLabel.setAttribute("for", "predatorNeighborhood");
             div.appendChild(predatorNeighborhood);
             div.appendChild(predatorNeighborhoodLabel);
-            div.appendChild(document.createElement("br") );
+            div.appendChild(document.createElement("br"));
             //Create and add to div the predatorTurnSpeed slider, label, and line break
             let predatorTurnSpeed = document.createElement("input");
             predatorTurnSpeed.setAttribute("type", "range");
@@ -1297,7 +1531,7 @@ window.onload = function() {
             predatorTurnSpeedLabel.setAttribute("for", "predatorTurnSpeed");
             div.appendChild(predatorTurnSpeed);
             div.appendChild(predatorTurnSpeedLabel);
-            div.appendChild(document.createElement("br") );
+            div.appendChild(document.createElement("br"));
             //Create and add to div the predatorCollisionRadius slider, label, and line break
             let predatorCollisionRadius = document.createElement("input");
             predatorCollisionRadius.setAttribute("type", "range");
@@ -1313,7 +1547,7 @@ window.onload = function() {
             predatorCollisionRadiusLabel.setAttribute("for", "predatorCollisionRadius");
             div.appendChild(predatorCollisionRadius);
             div.appendChild(predatorCollisionRadiusLabel);
-            div.appendChild(document.createElement("br") );
+            div.appendChild(document.createElement("br"));
             //Create and add to div the predatorSatiation slider, label, and line break
             let predatorSatiation = document.createElement("input");
             predatorSatiation.setAttribute("type", "range");
@@ -1329,7 +1563,192 @@ window.onload = function() {
             predatorSatiationLabel.setAttribute("for", "predatorSatiation");
             div.appendChild(predatorSatiation);
             div.appendChild(predatorSatiationLabel);
-            div.appendChild(document.createElement("br") );
+            div.appendChild(document.createElement("br"));
+        }
+        else {
+            //Remove counter for "Boids Preyed Upon"
+            let inputBoidsPreyedUpon = document.getElementById("boidsPreyedUpon");
+            inputBoidsPreyedUpon.parentNode.removeChild(inputBoidsPreyedUpon.previousSibling);
+            inputBoidsPreyedUpon.parentNode.removeChild(inputBoidsPreyedUpon.previousSibling);
+            inputBoidsPreyedUpon.parentNode.removeChild(inputBoidsPreyedUpon);
+
+            //Remove button for "Add Predator"
+            let addPredator = document.getElementById("addPredator");
+            //Only remove previous sibling (line break) if this is only Special Mode activated
+            if (specialMode == "specialPredator") {
+                addPredator.parentNode.removeChild(addPredator.previousSibling);
+            }
+            addPredator.parentNode.removeChild(addPredator);
+
+            //Remove div (including all sliders, labels, etc) for Predator Options
+            let child = document.getElementById("predatorOptionsDiv");
+            child.parentNode.removeChild(child);
+
+            //Empty array of Predators, so they don't continue to appear on screen
+            thePredators = [];
+            
+            //Disable special mode predator
+            let index = specialMode.indexOf("specialPredator");
+            if (index == 0) {
+                //Slice off "specialPredator" at beginning (15 letters long)
+                specialMode = specialMode.slice(15);
+            }
+            else {
+                //Combine the slices from before and after "specialPredator"
+                specialMode = specialMode.slice(0, index) + specialMode.slice(index + 15);
+            }
+        }
+    };
+
+    /**
+     * Handle the enabling/disabling of the Teleporter special mode
+     */
+    this.document.getElementById("specialTeleporter").onclick = function() {
+        //Check whether we need to enable or disable
+        if (document.getElementById("specialTeleporter").checked) {
+            //Enable special mode Teleporter
+            specialMode += "specialTeleporter";
+
+            //Add a Teleporter
+            rngenerateTeleporter();
+
+            //Create button to "Add Teleporter"
+            let buttonAddTeleporter = document.createElement("button");
+            buttonAddTeleporter.setAttribute("id", "addTeleporter");
+            buttonAddTeleporter.setAttribute("value", "0");
+            buttonAddTeleporter.setAttribute("style", "margin-left: 1em");
+            buttonAddTeleporter.setAttribute("style", "margin: 0 0 1em 1em");
+            buttonAddTeleporter.innerHTML = "Add Teleporter";
+            buttonAddTeleporter.onclick = rngenerateTeleporter;
+            //Check if "Add Predator" button exists--if not, put this button on new line
+            if (!document.getElementById("addPredator") ) {
+                document.getElementById("add1").parentElement.appendChild(document.createElement("br"));
+            }
+            document.getElementById("add1").parentElement.appendChild(buttonAddTeleporter);
+
+            //Create counter for "Teleportations"
+            let newInput = document.createElement("input");
+            newInput.setAttribute("type", "text");
+            newInput.setAttribute("readonly", "true");
+            newInput.setAttribute("id", "teleportations");
+            newInput.setAttribute("value", "0");
+            newInput.setAttribute("style", "margin-top: 1em");
+            let newLabel = document.createElement("label");
+            newLabel.setAttribute("for", "teleportations");
+            newLabel.setAttribute("style", "margin-left: 1em");
+            newLabel.innerHTML = "Teleportations: ";
+            document.getElementById("boidPopulation").parentElement.appendChild(document.createElement("br"));
+            document.getElementById("boidPopulation").parentElement.appendChild(newLabel);
+            document.getElementById("boidPopulation").parentElement.appendChild(newInput);
+
+            //Create and add to DOM the div containing the sliders
+            let div = document.createElement("div");
+            div.setAttribute("id", "teleporterOptionsDiv");
+            let nextNode = document.getElementById("speed").parentElement;
+            let parentElement = nextNode.parentElement;
+            parentElement.insertBefore(div, nextNode);
+            //Create and add to div the legend at top of sliders
+            let legend = document.createElement("legend");
+            legend.innerHTML = "Teleporter Options";
+            legend.setAttribute("style", "font-weight:bold; margin-top:1em; margin-left:1em");
+            div.appendChild(legend);
+            //Create and add to div the teleporterSpeed slider, label, and line break
+            let teleporterSpeed = document.createElement("input");
+            teleporterSpeed.setAttribute("type", "range");
+            teleporterSpeed.setAttribute("id", "teleporterSpeed");
+            teleporterSpeed.setAttribute("width", "100px");
+            teleporterSpeed.setAttribute("min", "0");
+            teleporterSpeed.setAttribute("max", "5");
+            teleporterSpeed.setAttribute("step", "0.1");
+            teleporterSpeed.setAttribute("value", "1");
+            teleporterSpeed.setAttribute("style", "margin-left:1em");
+            let teleporterSpeedLabel = document.createElement("label");
+            teleporterSpeedLabel.innerHTML = "Speed";
+            teleporterSpeedLabel.setAttribute("for", "teleporterSpeed");
+            div.appendChild(teleporterSpeed);
+            div.appendChild(teleporterSpeedLabel);
+            div.appendChild(document.createElement("br"));
+            //Create and add to div the teleporterMomentum slider, label, and line break
+            let teleporterMomentum = document.createElement("input");
+            teleporterMomentum.setAttribute("type", "range");
+            teleporterMomentum.setAttribute("id", "teleporterMomentum");
+            teleporterMomentum.setAttribute("width", "100px");
+            teleporterMomentum.setAttribute("min", "0.01");
+            teleporterMomentum.setAttribute("max", "0.5");
+            teleporterMomentum.setAttribute("step", "0.01");
+            teleporterMomentum.setAttribute("value", "0.25");
+            teleporterMomentum.setAttribute("style", "margin-left:1em");
+            let teleporterMomentumLabel = document.createElement("label");
+            teleporterMomentumLabel.innerHTML = "Momentum";
+            teleporterMomentumLabel.setAttribute("for", "teleporterMomentum");
+            div.appendChild(teleporterMomentum);
+            div.appendChild(teleporterMomentumLabel);
+            div.appendChild(document.createElement("br"));
+            //Create and add to div the teleporterCollisionRadius slider, label, and line break
+            let teleporterCollisionRadius = document.createElement("input");
+            teleporterCollisionRadius.setAttribute("type", "range");
+            teleporterCollisionRadius.setAttribute("id", "teleporterCollisionRadius");
+            teleporterCollisionRadius.setAttribute("width", "100px");
+            teleporterCollisionRadius.setAttribute("min", "5");
+            teleporterCollisionRadius.setAttribute("max", "50");
+            teleporterCollisionRadius.setAttribute("step", "5");
+            teleporterCollisionRadius.setAttribute("value", "20");
+            teleporterCollisionRadius.setAttribute("style", "margin-left:1em");
+            let teleporterCollisionRadiusLabel = document.createElement("label");
+            teleporterCollisionRadiusLabel.innerHTML = "Collision Radius";
+            teleporterCollisionRadiusLabel.setAttribute("for", "teleporterCollisionRadius");
+            div.appendChild(teleporterCollisionRadius);
+            div.appendChild(teleporterCollisionRadiusLabel);
+            div.appendChild(document.createElement("br"));
+            //Create and add to div the teleporterCooldown slider, label, and line break
+            let teleporterCooldown = document.createElement("input");
+            teleporterCooldown.setAttribute("type", "range");
+            teleporterCooldown.setAttribute("id", "teleporterCooldown");
+            teleporterCooldown.setAttribute("width", "100px");
+            teleporterCooldown.setAttribute("min", "6");
+            teleporterCooldown.setAttribute("max", "300");
+            teleporterCooldown.setAttribute("step", "6");
+            teleporterCooldown.setAttribute("value", "90");
+            teleporterCooldown.setAttribute("style", "margin-left:1em");
+            let teleporterCooldownLabel = document.createElement("label");
+            teleporterCooldownLabel.innerHTML = "Teleportation Cooldown";
+            teleporterCooldownLabel.setAttribute("for", "teleporterCooldown");
+            div.appendChild(teleporterCooldown);
+            div.appendChild(teleporterCooldownLabel);
+            div.appendChild(document.createElement("br"));
+        }
+        else {
+            //Remove counter for "Teleportations"
+            let inputTeleportations = document.getElementById("teleportations");
+            inputTeleportations.parentNode.removeChild(inputTeleportations.previousSibling);
+            inputTeleportations.parentNode.removeChild(inputTeleportations.previousSibling);
+            inputTeleportations.parentNode.removeChild(inputTeleportations);
+
+            //Remove button for "Add Teleporter"
+            let buttonAddTeleporter = document.getElementById("addTeleporter");
+            //Only remove previous sibling (line break) if this is only Special Mode activated
+            if (specialMode == "specialTeleporter") {
+                buttonAddTeleporter.parentNode.removeChild(buttonAddTeleporter.previousSibling);
+            }
+            buttonAddTeleporter.parentNode.removeChild(buttonAddTeleporter);
+
+            //Remove div (including all sliders, labels, etc) for Teleporter Options
+            let child = document.getElementById("teleporterOptionsDiv");
+            child.parentNode.removeChild(child);
+
+            //Empty array of teleporters, so they don't continue to appear on screen
+            theTeleporters = [];
+            
+            //Disable special mode Teleporter
+            let index = specialMode.indexOf("specialTeleporter");
+            if (index == 0) {
+                //Slice off "specialTeleporter" at beginning (17 letters long)
+                specialMode = specialMode.slice(17);
+            }
+            else {
+                //Combine the slices from before and after "specialTeleporter"
+                specialMode = specialMode.slice(0, index) + specialMode.slice(index + 17);
+            }
         }
     };
 
@@ -1366,7 +1785,7 @@ window.onload = function() {
     };
 
     /**
-     * Helper function to create boids at random.
+     * Helper function to create Boids at random.
      */
     function rngenerateBoid() {
         //Randomly generate positions and angle (direction)
@@ -1387,7 +1806,7 @@ window.onload = function() {
     }
 
     /**
-     * Helper function to create predators at random.
+     * Helper function to create Predators at random.
      */
     function rngeneratePredator() {
         //Randomly generates positions and angle (direction)
@@ -1396,8 +1815,26 @@ window.onload = function() {
         let theta = Math.random()*Math.PI*2;
         let vx = Math.cos(theta);
         let vy = Math.sin(theta);
-        //Create predator
+        //Create Predator
         thePredators.push(new Predator(x,y,vx,vy) );
+    }
+
+    /**
+     * Helper function to create Teleporters at random.
+     */
+    function rngenerateTeleporter() {
+        //Randomly generate positions and velocities
+        let x = Math.random()*canvas.width;
+        let y = Math.random()*canvas.height;
+        let vx = Math.random() * 2 - 1;
+        let vy = Math.random() * 2 -1;
+        let mx, my;
+        if (vx >= 0) mx = 1;
+        else    mx = -1;
+        if (vy >= 0) my = 1;
+        else    my = -1;
+        //Create Teleporter
+        theTeleporters.push(new Teleporter(x,y,vx,vy,mx,my) );
     }
 
     /**
@@ -1440,38 +1877,73 @@ window.onload = function() {
             }
         } );
         // Handle predators, if needed
-        if(specialMode == "specialPredator") {
+        if (specialMode.includes("specialPredator") ) {
             // change directions
             thePredators.forEach(predator => predator.steer(theBoids, thePredators, specialMode, preyCounter) );
             // move forward
             let predatorSpeed = document.getElementById("predatorSpeed").value;
-            thePredators.forEach(function(predator) {
+            thePredators.forEach(predator => {
                 predator.x += predator.vx * predatorSpeed;
                 predator.y += predator.vy * predatorSpeed;
             } );
             // make sure that we stay on the screen
             thePredators.forEach(function(predator) {
-                if (predator.x >= canvas.width) {
+                if ( (predator.x >= canvas.width) && (predator.vx >= 0) ) {
                     predator.vx = -predator.vx;
                     predator.collide();
                 }
-                else if (predator.x <= 0) {
+                else if ( (predator.x <= 0) && (predator.vx <= 0) ) {
                     predator.vx = -predator.vx;
                     predator.collide();
                 }
-                if (predator.y >= canvas.height) {
+                if ( (predator.y >= canvas.height) && (predator.vy >= 0) ) {
                     predator.vy = -predator.vy;
                     predator.collide();
                 }
-                else if (predator.y <= 0) {
+                else if ( (predator.y <= 0) && (predator.vy <= 0) ) {
                     predator.vy = -predator.vy;
                     predator.collide();
                 }
             } );
         }
-        // now we can draw
+        // Handle teleporters, if needed
+        if (specialMode.includes("specialTeleporter") ) {
+            // change directions
+            theTeleporters.forEach(teleporter => teleporter.steer(theBoids, thePredators, theTeleporters, teleportCounter, canvas) );
+            // move forward
+            let teleporterSpeed = document.getElementById("teleporterSpeed").value;
+            theTeleporters.forEach(teleporter => {
+                teleporter.x += teleporter.vx * teleporterSpeed;
+                teleporter.y += teleporter.vy * teleporterSpeed;
+            });
+            // make sure that we stay on the screen
+            theTeleporters.forEach(teleporter => {
+                if ( (teleporter.x >= canvas.width) && (teleporter.vx >= 0) ) {
+                    teleporter.vx = -teleporter.vx;
+                    teleporter.mx = -teleporter.mx;
+                    teleporter.collide();
+                }
+                else if ( (teleporter.x <= 0) && (teleporter.vx <= 0) ) {
+                    teleporter.vx = -teleporter.vx;
+                    teleporter.mx = -teleporter.mx;
+                    teleporter.collide();
+                }
+                if ( (teleporter.y >= canvas.height) && (teleporter.vy >= 0) ) {
+                    teleporter.vy = -teleporter.vy;
+                    teleporter.mx = -teleporter.mx;
+                    teleporter.collide();
+                }
+                else if ( (teleporter.y <= 0) && (teleporter.vy <= 0) ) {
+                    teleporter.vy = -teleporter.vy;
+                    teleporter.mx = -teleporter.mx;
+                    teleporter.collide();
+                }
+            });
+        }
+
+        // Now we can draw
         draw();
-        // and loop
+        // And loop
         window.requestAnimationFrame(loop);
         
         //update collision counter

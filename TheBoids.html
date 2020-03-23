@@ -17,10 +17,10 @@
    <meta name="color-scheme" content="only light">
 </head>
 <body>
-  <table style="min-width:max-content">
+  <table>
     <tr>
       <td>
-        <canvas id="flock" height="700px" width="800px" style="border:2px solid black"></canvas>
+        <canvas id="canvas" height="500px" width="500px" style="border:2px solid black"></canvas>
       </td>
       <td>
         <div id="fpsDiv">
@@ -63,10 +63,10 @@
         </div>
         <div id="specialOptionsDiv">
           <legend style="font-weight:bold; margin-top:1em; margin-left:1em">Special Options</legend>
-          <input type="radio" name="specialOptions" id="specialNone" value="specialNone" style="margin-left:1em" checked>
-          <label for="specialNone">None</label>
-          <input type="radio" name="specialOptions" id="specialPredator" value="specialPredator">
+          <input type="checkbox" id="specialPredator" style="margin-left:1em">
           <label for="specialPredator">Predator</label>
+          <input type="checkbox" id="specialTeleporter" style="margin-left:1em">
+          <label for="specialTeleporter">Teleporter</label>
           <input type="checkbox" id="limitedLifeSpan" style="float:right">
           <label for="limitedLifeSpan" style="float:right; margin-left:3em">Limited Life Span</label>
         </div>
