@@ -425,7 +425,7 @@ class Boid {
         let sizeMult = Math.sqrt(this.mass);
         let collided = flock.filter( boid => {
             let distance = Math.sqrt( Math.pow(this.x-boid.x, 2) + Math.pow(this.y-boid.y, 2) );
-            return (distance < collisionRadius*sizeMult) && (distance != 0);
+            return (distance < (collisionRadius*sizeMult + collisionRadius*Math.sqrt(boid.mass)) ) && (distance != 0);
         } );
 
          //Collide collisionMode
@@ -794,7 +794,7 @@ class Predator {
         //Check for predator-predator collisions 
         let collided = predators.filter( predator => {
             let distance = Math.sqrt(Math.pow(predator.x-this.x, 2) + Math.pow(predator.y-this.y, 2) );
-            return (distance < collisionRadius*sizeMult) && (distance != 0);
+            return (distance < (collisionRadius*sizeMult + collisionRadius*Math.sqrt(predator.mass)) ) && (distance != 0);
         } );
         //Handle predator-predator collisions, if any
         if (collided[0] ) {
@@ -810,9 +810,10 @@ class Predator {
         }
         
         //Check for predator-boid collisions
+        let boidCollisionRadius = document.getElementById("collisionRadius").value;
         let prey = boids.filter( boid => {
             let distance = Math.sqrt(Math.pow(boid.x-this.x, 2) + Math.pow(boid.y-this.y, 2) );
-            return (distance < collisionRadius*sizeMult);
+            return (distance < (collisionRadius*sizeMult + boidCollisionRadius*Math.sqrt(boid.mass)) );
         } );
         //Handle predator-boid collisions, if any
         if (prey[0] ) {
@@ -938,10 +939,11 @@ class Teleporter {
      * @param {Array<Boid>} boids               - array of all Boids on screen
      * @param {Array<Predator>} predators       - array of all Predators on screen 
      * @param {Array<Teleporter>} teleporters   - array of all Teleporters on screen
+     * @param {String} specialMode              - string containing all specialModes enabled, concatenated together (no spaces)
      * @param {TeleportCounter} teleportCounter - obj to keep track of number of Boids/Predators teleported
      * @param {HTMLCanvasElement} canvas        - the canvas in which drawing context resides; passed in for location randomization (canvas.width, canvas.height) if needed
      */
-    steer(boids, predators, teleporters, teleportCounter, canvas) {
+    steer(boids, predators, teleporters, specialMode, teleportCounter, canvas) {
         let momentumSlider = /** @type {HTMLInputElement} */ (document.getElementById("teleporterMomentum") );
         let momentumScale = Number(momentumSlider.value);
 
@@ -991,7 +993,7 @@ class Teleporter {
         }
         
         //Handle collisions via helper method
-        this.handleCollision(boids, predators, teleporters, teleportCounter, canvas);
+        this.handleCollision(boids, predators, teleporters, specialMode, teleportCounter, canvas);
     }
 
     /**
@@ -1000,17 +1002,18 @@ class Teleporter {
      * @param {Array<Boid>} boids               - array of all Boids on the screen
      * @param {Array<Predator>} predators       - array of all Predators on screen
      * @param {Array<Teleporter} teleporters    - array of all Teleporters on screen
+     * @param {String} specialMode              - string containing all specialModes enabled, concatenated together (no spaces)
      * @param {PreyCounter} teleportCounter     - obj that keeps track of number of Boids/Predators teleported
      * @param {HTMLCanvasElement} canvas        - the canvas in which drawing context resides; passed in for location randomization (canvas.width, canvas.height) if needed
      */
-    handleCollision(boids, predators, teleporters, teleportCounter, canvas) {
+    handleCollision(boids, predators, teleporters, specialMode, teleportCounter, canvas) {
         let collisionSlider = /** @type {HTMLInputElement} */ (document.getElementById("teleporterCollisionRadius") );
         let collisionRadius = Number(collisionSlider.value);
 
         //Check for teleporter-teleporter collisions 
         let collided = teleporters.filter( teleporter => {
             let distance = Math.sqrt(Math.pow(teleporter.x-this.x, 2) + Math.pow(teleporter.y-this.y, 2) );
-            return (distance < collisionRadius) && (distance != 0);
+            return (distance < 2*collisionRadius) && (distance != 0);
         } );
         //Handle teleporter-teleporter collisions, if any
         if (collided[0] ) {
@@ -1025,30 +1028,34 @@ class Teleporter {
             this.collide();
         }
         
-        //Check for teleporter-predator collisions
-        let teleportedPredators = predators.filter( predator => {
-            let distance = Math.sqrt(Math.pow(predator.x-this.x, 2) + Math.pow(predator.y-this.y, 2) );
-            return (distance < collisionRadius*Math.sqrt(predator.mass) );
-        } );
-        //Handle teleporter-predator collisions, if any
-        if (teleportedPredators[0] ) {
-            //Check for teleportation cooldown
-            if (this.collision >= 0) {
-                //Find teleported predator in array of all predators
-                let targetIndex = predators.indexOf(teleportedPredators[0] );
-                //Make sure the target predator was found in array of all predators
-                if (targetIndex > -1) {
-                    this.teleport(teleportedPredators[0], canvas);
-                    teleportCounter.updateCount();
+        if (specialMode.includes("specialPredator") ) {
+            //Check for teleporter-predator collisions
+            let predatorCollisionRadius = document.getElementById("predatorCollisionRadius").value;
+            let teleportedPredators = predators.filter(predator => {
+                let distance = Math.sqrt(Math.pow(predator.x - this.x, 2) + Math.pow(predator.y - this.y, 2));
+                return (distance < (collisionRadius + predatorCollisionRadius*Math.sqrt(predator.mass)) );
+            });
+            //Handle teleporter-predator collisions, if any
+            if (teleportedPredators[0]) {
+                //Check for teleportation cooldown
+                if (this.collision >= 0) {
+                    //Find teleported predator in array of all predators
+                    let targetIndex = predators.indexOf(teleportedPredators[0]);
+                    //Make sure the target predator was found in array of all predators
+                    if (targetIndex > -1) {
+                        this.teleport(teleportedPredators[0], canvas);
+                        teleportCounter.updateCount();
+                    }
+                    else throw new Error("Predator from teleportedPredators[] not found in predators[]--this should not be possible, something has gone wrong!");
                 }
-                else throw new Error("Predator from teleportedPredators[] not found in predators[]--this should not be possible, something has gone wrong!");
             }
-        }
+        }  
 
         //Check for teleporter-boid collisions
+        let boidCollisionRadius = document.getElementById("collisionRadius").value;
         let teleportedBoids = boids.filter(boid => {
             let distance = Math.sqrt(Math.pow(boid.x - this.x, 2) + Math.pow(boid.y - this.y, 2));
-            return (distance < collisionRadius * Math.sqrt(boid.mass));
+            return (distance < (collisionRadius + boidCollisionRadius*Math.sqrt(boid.mass) ) );
         });
         //Handle teleporter-boid collisions, if any
         if (teleportedBoids[0]) {
@@ -1909,7 +1916,7 @@ window.onload = function() {
         // Handle teleporters, if needed
         if (specialMode.includes("specialTeleporter") ) {
             // change directions
-            theTeleporters.forEach(teleporter => teleporter.steer(theBoids, thePredators, theTeleporters, teleportCounter, canvas) );
+            theTeleporters.forEach(teleporter => teleporter.steer(theBoids, thePredators, theTeleporters, specialMode, teleportCounter, canvas) );
             // move forward
             let teleporterSpeed = document.getElementById("teleporterSpeed").value;
             theTeleporters.forEach(teleporter => {
