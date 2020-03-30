@@ -1187,10 +1187,9 @@ window.onload = function() {
 
     let canvas = /** @type {HTMLCanvasElement} */ (document.getElementById("canvas"));
     let context = canvas.getContext("2d");
-    //Set canvas to more appropriate size
-    let canvasSize = Math.min(document.documentElement.clientHeight, document.documentElement.clientWidth) - 85;
-    canvas.width = canvasSize;
-    canvas.height = canvasSize;
+    //Set canvas to more appropriate size--fill width of parent element, but limit height to 95% of viewport height (leaving a lil room for margins)
+    canvas.width = canvas.parentElement.clientWidth;
+    canvas.height = window.innerHeight * 0.95;
 
     //Default behavior mode (default checked radio box)
     let behaviorMode = "behaviorIgnore";

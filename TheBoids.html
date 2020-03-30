@@ -1,8 +1,8 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
   <title>The Boids -- A Bird Simulation</title>
-  <meta charset="utf-8">
+  <meta charset="UTF-8">
   <meta name="author" content="Tim Pinkerton">
   <meta name="description" content="The Boids is a simulation of bird flight behaviors (both realistic and unrealistic). /br
    It began as a class project to practice use of the Canvas API by crudely imitating the flocking behavior of starlings.
@@ -15,33 +15,34 @@
    of the three core behavioral motivations typically encoded in Boid flocking (alignment, separation, and cohesion),
    the flocking programmed here considers only alignment (in other words, Boids care only about the orientation of nearby boids, not their distance).">
    <meta name="color-scheme" content="only light">
+   <link rel="stylesheet" type="text/css" href="TheBoids.css" />
 </head>
 <body>
   <table>
     <tr>
-      <td>
-        <canvas id="canvas" height="500px" width="500px" style="border:2px solid black"></canvas>
+      <td class="canvasCell">
+        <canvas id="canvas"></canvas>
       </td>
       <td>
         <div id="fpsDiv">
-          <p id="fps" style="margin-left: 1em"></p>
+          <p id="fps"></p>
         </div>
         <div id="buttonDiv">
-          <button id="add1" style="margin: 1em">Add 1</button>
-          <button id="add10" style="margin: 1em">Add 10</button>
-          <button id="add100" style="margin: 1em">Add 100</button>
-          <button id="add1000" style="margin: 1em">Add 1000</button>
-          <button id="clear"  style="margin: 1em">Clear</button>
+          <button id="add1">Add 1</button>
+          <button id="add10">Add 10</button>
+          <button id="add100">Add 100</button>
+          <button id="add1000">Add 1000</button>
+          <button id="clear">Clear</button>
         </div>
         <div id="counterDiv">
-          <label for="boidPopulation" style="margin-left: 1em">Boid Population: </label><input type="text" id="boidPopulation" value="0" readonly style="margin-top: 1em">
-          </br>
-          <label for="boidCollisions" style="margin-left: 1em">Boid Collisions: </label><input type="text" id="boidCollisions" value="0" readonly style="margin-top: 1em">
-          <label for="timeSinceClear"> since </label><input type="text" id="timeSinceClear" value="0" readonly></input>
+          <label for="boidPopulation" style="margin-left: 1em">Boid Population: </label><input type="text" id="boidPopulation" value="0" readonly>
+          <br>
+          <label for="boidCollisions" style="margin-left: 1em">Boid Collisions: </label><input type="text" id="boidCollisions" value="0" readonly>
+          <label for="timeSinceClear"> since </label><input type="text" id="timeSinceClear" value="0" readonly>
         </div>
         <div id="behaviorOptionsDiv">
-          <legend style="font-weight:bold; margin-top:1em; margin-left:1em">Behavior Options</legend>
-          <input type="radio" name="behaviorOptions" id="behaviorIgnore" value="behaviorIgnore" style="margin-left:1em" checked>
+          <h4 class="inputHeading">Behavior Options</h4>
+          <input type="radio" name="behaviorOptions" id="behaviorIgnore" value="behaviorIgnore" class="firstRadioOption" checked>
           <label for="behaviorIgnore">Ignore</label>
           <input type="radio" name="behaviorOptions" id="behaviorFlocking" value="behaviorFlocking">
           <label for="behaviorFlocking">Flocking</label>
@@ -51,8 +52,8 @@
           <label for="behaviorAttraction">Attraction</label>
         </div>
         <div id="collisionOptionsDiv">
-          <legend style="font-weight:bold; margin-top:1em; margin-left:1em">Collision Options</legend>
-          <input type="radio" name="collisionOptions" id="collisionIgnore" value="collisionIgnore" style="margin-left:1em" checked>
+          <h4 class="inputHeading">Collision Options</h4>
+          <input type="radio" name="collisionOptions" id="collisionIgnore" value="collisionIgnore" class="firstRadioOption" checked>
           <label for="collisionIgnore">Ignore</label>
           <input type="radio" name="collisionOptions" id="collisionCollide" value="collisionCollide">
           <label for="collisionCollide">Collide</label>
@@ -62,7 +63,7 @@
           <label for="collisionReproduce">Reproduce</label>
         </div>
         <div id="specialOptionsDiv">
-          <legend style="font-weight:bold; margin-top:1em; margin-left:1em">Special Options</legend>
+          <h4 class="inputHeading">Special Options</h4>
           <input type="checkbox" id="specialPredator" style="margin-left:1em">
           <label for="specialPredator">Predator</label>
           <input type="checkbox" id="specialTeleporter" style="margin-left:1em">
@@ -71,16 +72,16 @@
           <label for="limitedLifeSpan" style="float:right; margin-left:3em">Limited Life Span</label>
         </div>
         <div id="boidOptionsDiv">
-          <legend style="font-weight:bold; margin-top:1em; margin-left:1em">Boid Options</legend>
-          <input type="range" width="100px" min="0" max="5" step=".1" value="2" id="speed" style="margin-left:1em">
+          <h4 class="inputHeading">Boid Options</h4>
+          <input type="range" min="0" max="5" step=".1" value="2" id="speed">
           <label for="speed">Speed</label><br />
-          <input type="range" width="100px" min="10" max="250" step="5" value="100" id="neighborhood" style="margin-left:1em">
+          <input type="range" min="10" max="250" step="5" value="100" id="neighborhood">
           <label for="neighborhood">Neighborhood Radius</label>
           <input type="checkbox" id="showNeighborhoodRadius" style="float:right">
           <label for="showNeighborhoodRadius" style="float:right; margin-left:3em">Show neighborhood radius</label><br />
-          <input type="range" width="100px" min="0" max="3" step=".1" value=".5" id="turnSpeed" style="margin-left:1em">
+          <input type="range" min="0" max="3" step=".1" value=".5" id="turnSpeed">
           <label for="turnSpeed">Turn Speed</label><br />
-          <input type="range" width="100px" min="1" max="20" step="1" value="5" id="collisionRadius" style="margin-left:1em">
+          <input type="range" min="1" max="20" step="1" value="5" id="collisionRadius">
           <label for="collisionRadius">Collision Radius</label>
           <input type="checkbox" id="showCollisionRadius" style="float:right">
           <label for="showCollisionRadius" style="float:right; margin-left:3em">Show collision radius</label>
@@ -92,6 +93,6 @@
     <p>Created by Tim Pinkerton. Contact with questions, concerns, or suggestions at: </p>
     <address> <a href="mailto:timmypink199+theboids@gmail.com">timmypink199@gmail.com</a></address>
   </footer>
-  <script src="TheBoids.js" type="module"></script>
+  <script type="text/javascript" src="TheBoids.js"></script>
 </body>
 </html>

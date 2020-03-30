@@ -1,0 +1,48 @@
+div {
+    margin-top: 1em;
+}
+
+button {
+    margin: 1em;
+    padding: 0.2em;
+    background-color: #dddddd;
+    border-radius: 0.25em;
+}
+
+button:hover {
+    box-shadow: 0.1em 0.1em 0.5em;
+}
+
+canvas {
+    border: 2px solid black;
+}
+
+input[type="range"] {
+    width: 15vw;
+    margin-left: 1em;
+}
+
+input[type="text"] {
+    max-width: 6em;
+    margin: 0.5em;
+    text-align: left;
+}
+
+input[type="radio"].firstRadioOption {
+    margin-left: 1em;
+}
+
+td.canvasCell {
+    width: 50vw;
+    vertical-align: top;
+}
+
+h4.inputHeading {
+    font-weight:bold; 
+    margin: 1em 1em 0 1em;
+}
+
+#fps {
+    margin-left: 1em;
+    font-style: italic;
+}
