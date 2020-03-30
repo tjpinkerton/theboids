@@ -180,7 +180,7 @@ class Boid {
         let turnSpeed = Number(turnSpeedSlider.value) * Math.PI/180;
 
         //Check if we are in special mode Predator
-        if (specialMode == "specialPredator") {
+        if (specialMode.includes("specialPredator") ) {
             //Find any predators within this boid's neighborhood
             let threats = predators.filter(predator => {
                 let distance = Math.sqrt( Math.pow(this.x-predator.x, 2) + Math.pow(this.y-predator.y, 2) );
@@ -1191,6 +1191,12 @@ window.onload = function() {
     canvas.width = canvas.parentElement.clientWidth;
     canvas.height = window.innerHeight * 0.95;
 
+    //Make canvas resize, according to rules above, upon orientation change
+    window.onorientationchange = function() {
+        canvas.width = canvas.parentElement.clientWidth;
+        canvas.height = window.innerHeight * 0.95;
+    };
+
     //Default behavior mode (default checked radio box)
     let behaviorMode = "behaviorIgnore";
     //Default collision mode (default checked radio box)
@@ -1253,6 +1259,7 @@ window.onload = function() {
         collisionCounter.resetCount();
         reproductionCounter.resetCount();
         preyCounter.resetCount();
+        teleportCounter.resetCount();
         document.getElementById("timeSinceClear").value = new Date().toLocaleTimeString();
     };
 
@@ -1378,10 +1385,8 @@ window.onload = function() {
             newInput.setAttribute("readonly", "true");
             newInput.setAttribute("id", "boidReproductions");
             newInput.setAttribute("value", "0");
-            newInput.setAttribute("style", "margin-top: 1em");
             let newLabel = document.createElement("label");
             newLabel.setAttribute("for", "boidReproductions");
-            newLabel.setAttribute("style", "margin-left: 1em");
             newLabel.innerHTML = "Boid Reproductions: ";
             document.getElementById("boidPopulation").parentElement.appendChild(document.createElement("br") );
             document.getElementById("boidPopulation").parentElement.appendChild(newLabel);
@@ -1410,8 +1415,6 @@ window.onload = function() {
             let newInput = document.createElement("input");
             newInput.setAttribute("type", "range");
             newInput.setAttribute("id", "reproduction");
-            newInput.setAttribute("style", "margin-left:1em");
-            newInput.setAttribute("width", "100px");
             newInput.setAttribute("min", "6");
             newInput.setAttribute("max", "300");
             newInput.setAttribute("step", "6");
@@ -1455,7 +1458,6 @@ window.onload = function() {
             let buttonAddPredator = document.createElement("button");
             buttonAddPredator.setAttribute("id", "addPredator");
             buttonAddPredator.setAttribute("value", "0");
-            buttonAddPredator.setAttribute("style", "margin-left: 1em");
             buttonAddPredator.innerHTML = "Add Predator";
             buttonAddPredator.onclick = rngeneratePredator;
             //Check if "Add Teleporter" button exists--if not, add this to a new line
@@ -1470,7 +1472,6 @@ window.onload = function() {
             newInput.setAttribute("readonly", "true");
             newInput.setAttribute("id", "boidsPreyedUpon");
             newInput.setAttribute("value", "0");
-            newInput.setAttribute("style", "margin-top: 1em");
             let newLabel = document.createElement("label");
             newLabel.setAttribute("for", "boidsPreyedUpon");
             newLabel.setAttribute("style", "margin-left: 1em");
@@ -1479,27 +1480,23 @@ window.onload = function() {
             document.getElementById("boidPopulation").parentElement.appendChild(newLabel);
             document.getElementById("boidPopulation").parentElement.appendChild(newInput);
 
-            //Create and add to DOM the div containing the sliders
+            //Create and add to DOM the predatorOptionsDiv
             let div = document.createElement("div");
             div.setAttribute("id", "predatorOptionsDiv");
-            let nextNode = document.getElementById("speed").parentElement;
-            let parentElement = nextNode.parentElement;
-            parentElement.insertBefore(div, nextNode);
-            //Create and add to div the legend at top of sliders
-            let legend = document.createElement("legend");
-            legend.innerHTML = "Predator Options";
-            legend.setAttribute("style", "font-weight:bold; margin-top:1em; margin-left:1em");
-            div.appendChild(legend);
+            document.getElementById("rightCell").appendChild(div);
+            //Create and add to div the heading at top of sliders
+            let heading = document.createElement("h4");
+            heading.innerHTML = "Predator Options";
+            heading.setAttribute("class", "inputHeading");
+            div.appendChild(heading);
             //Create and add to div the predatorSpeed slider, label, and line break
             let predatorSpeed = document.createElement("input");
             predatorSpeed.setAttribute("type", "range");
             predatorSpeed.setAttribute("id", "predatorSpeed");
-            predatorSpeed.setAttribute("width", "100px");
             predatorSpeed.setAttribute("min", "0");
             predatorSpeed.setAttribute("max", "5");
             predatorSpeed.setAttribute("step", "0.1");
             predatorSpeed.setAttribute("value", "1");
-            predatorSpeed.setAttribute("style", "margin-left:1em");
             let predatorSpeedLabel = document.createElement("label");
             predatorSpeedLabel.innerHTML = "Speed";
             predatorSpeedLabel.setAttribute("for", "predatorSpeed");
@@ -1510,12 +1507,10 @@ window.onload = function() {
             let predatorNeighborhood = document.createElement("input");
             predatorNeighborhood.setAttribute("type", "range");
             predatorNeighborhood.setAttribute("id", "predatorNeighborhood");
-            predatorNeighborhood.setAttribute("width", "100px");
             predatorNeighborhood.setAttribute("min", "10");
             predatorNeighborhood.setAttribute("max", "400");
             predatorNeighborhood.setAttribute("step", "10");
             predatorNeighborhood.setAttribute("value", "200");
-            predatorNeighborhood.setAttribute("style", "margin-left:1em");
             let predatorNeighborhoodLabel = document.createElement("label");
             predatorNeighborhoodLabel.innerHTML = "Neighborhood Radius";
             predatorNeighborhoodLabel.setAttribute("for", "predatorNeighborhood");
@@ -1526,12 +1521,10 @@ window.onload = function() {
             let predatorTurnSpeed = document.createElement("input");
             predatorTurnSpeed.setAttribute("type", "range");
             predatorTurnSpeed.setAttribute("id", "predatorTurnSpeed");
-            predatorTurnSpeed.setAttribute("width", "100px");
             predatorTurnSpeed.setAttribute("min", "0");
             predatorTurnSpeed.setAttribute("max", "3");
             predatorTurnSpeed.setAttribute("step", "0.1");
             predatorTurnSpeed.setAttribute("value", "0.5");
-            predatorTurnSpeed.setAttribute("style", "margin-left:1em");
             let predatorTurnSpeedLabel = document.createElement("label");
             predatorTurnSpeedLabel.innerHTML = "Turn Speed";
             predatorTurnSpeedLabel.setAttribute("for", "predatorTurnSpeed");
@@ -1542,12 +1535,10 @@ window.onload = function() {
             let predatorCollisionRadius = document.createElement("input");
             predatorCollisionRadius.setAttribute("type", "range");
             predatorCollisionRadius.setAttribute("id", "predatorCollisionRadius");
-            predatorCollisionRadius.setAttribute("width", "100px");
             predatorCollisionRadius.setAttribute("min", "1");
             predatorCollisionRadius.setAttribute("max", "20");
             predatorCollisionRadius.setAttribute("step", "1");
             predatorCollisionRadius.setAttribute("value", "5");
-            predatorCollisionRadius.setAttribute("style", "margin-left:1em");
             let predatorCollisionRadiusLabel = document.createElement("label");
             predatorCollisionRadiusLabel.innerHTML = "Collision Radius";
             predatorCollisionRadiusLabel.setAttribute("for", "predatorCollisionRadius");
@@ -1558,12 +1549,10 @@ window.onload = function() {
             let predatorSatiation = document.createElement("input");
             predatorSatiation.setAttribute("type", "range");
             predatorSatiation.setAttribute("id", "predatorSatiation");
-            predatorSatiation.setAttribute("width", "100px");
             predatorSatiation.setAttribute("min", "6");
             predatorSatiation.setAttribute("max", "300");
             predatorSatiation.setAttribute("step", "6");
             predatorSatiation.setAttribute("value", "90");
-            predatorSatiation.setAttribute("style", "margin-left:1em");
             let predatorSatiationLabel = document.createElement("label");
             predatorSatiationLabel.innerHTML = "Satiation Cooldown";
             predatorSatiationLabel.setAttribute("for", "predatorSatiation");
@@ -1622,8 +1611,6 @@ window.onload = function() {
             let buttonAddTeleporter = document.createElement("button");
             buttonAddTeleporter.setAttribute("id", "addTeleporter");
             buttonAddTeleporter.setAttribute("value", "0");
-            buttonAddTeleporter.setAttribute("style", "margin-left: 1em");
-            buttonAddTeleporter.setAttribute("style", "margin: 0 0 1em 1em");
             buttonAddTeleporter.innerHTML = "Add Teleporter";
             buttonAddTeleporter.onclick = rngenerateTeleporter;
             //Check if "Add Predator" button exists--if not, put this button on new line
@@ -1638,7 +1625,6 @@ window.onload = function() {
             newInput.setAttribute("readonly", "true");
             newInput.setAttribute("id", "teleportations");
             newInput.setAttribute("value", "0");
-            newInput.setAttribute("style", "margin-top: 1em");
             let newLabel = document.createElement("label");
             newLabel.setAttribute("for", "teleportations");
             newLabel.setAttribute("style", "margin-left: 1em");
@@ -1647,27 +1633,23 @@ window.onload = function() {
             document.getElementById("boidPopulation").parentElement.appendChild(newLabel);
             document.getElementById("boidPopulation").parentElement.appendChild(newInput);
 
-            //Create and add to DOM the div containing the sliders
+            //Create and add to DOM the teleporterOptionsDiv
             let div = document.createElement("div");
             div.setAttribute("id", "teleporterOptionsDiv");
-            let nextNode = document.getElementById("speed").parentElement;
-            let parentElement = nextNode.parentElement;
-            parentElement.insertBefore(div, nextNode);
-            //Create and add to div the legend at top of sliders
-            let legend = document.createElement("legend");
-            legend.innerHTML = "Teleporter Options";
-            legend.setAttribute("style", "font-weight:bold; margin-top:1em; margin-left:1em");
-            div.appendChild(legend);
+            document.getElementById("rightCell").appendChild(div);
+            //Create and add to div the heading at top of sliders
+            let heading = document.createElement("h4");
+            heading.innerHTML = "Teleporter Options";
+            heading.setAttribute("class", "inputHeading");
+            div.appendChild(heading);
             //Create and add to div the teleporterSpeed slider, label, and line break
             let teleporterSpeed = document.createElement("input");
             teleporterSpeed.setAttribute("type", "range");
             teleporterSpeed.setAttribute("id", "teleporterSpeed");
-            teleporterSpeed.setAttribute("width", "100px");
             teleporterSpeed.setAttribute("min", "0");
             teleporterSpeed.setAttribute("max", "5");
             teleporterSpeed.setAttribute("step", "0.1");
             teleporterSpeed.setAttribute("value", "1");
-            teleporterSpeed.setAttribute("style", "margin-left:1em");
             let teleporterSpeedLabel = document.createElement("label");
             teleporterSpeedLabel.innerHTML = "Speed";
             teleporterSpeedLabel.setAttribute("for", "teleporterSpeed");
@@ -1678,12 +1660,10 @@ window.onload = function() {
             let teleporterMomentum = document.createElement("input");
             teleporterMomentum.setAttribute("type", "range");
             teleporterMomentum.setAttribute("id", "teleporterMomentum");
-            teleporterMomentum.setAttribute("width", "100px");
             teleporterMomentum.setAttribute("min", "0.01");
             teleporterMomentum.setAttribute("max", "0.5");
             teleporterMomentum.setAttribute("step", "0.01");
             teleporterMomentum.setAttribute("value", "0.25");
-            teleporterMomentum.setAttribute("style", "margin-left:1em");
             let teleporterMomentumLabel = document.createElement("label");
             teleporterMomentumLabel.innerHTML = "Momentum";
             teleporterMomentumLabel.setAttribute("for", "teleporterMomentum");
@@ -1694,12 +1674,10 @@ window.onload = function() {
             let teleporterCollisionRadius = document.createElement("input");
             teleporterCollisionRadius.setAttribute("type", "range");
             teleporterCollisionRadius.setAttribute("id", "teleporterCollisionRadius");
-            teleporterCollisionRadius.setAttribute("width", "100px");
             teleporterCollisionRadius.setAttribute("min", "5");
             teleporterCollisionRadius.setAttribute("max", "50");
             teleporterCollisionRadius.setAttribute("step", "5");
             teleporterCollisionRadius.setAttribute("value", "20");
-            teleporterCollisionRadius.setAttribute("style", "margin-left:1em");
             let teleporterCollisionRadiusLabel = document.createElement("label");
             teleporterCollisionRadiusLabel.innerHTML = "Collision Radius";
             teleporterCollisionRadiusLabel.setAttribute("for", "teleporterCollisionRadius");
@@ -1710,12 +1688,10 @@ window.onload = function() {
             let teleporterCooldown = document.createElement("input");
             teleporterCooldown.setAttribute("type", "range");
             teleporterCooldown.setAttribute("id", "teleporterCooldown");
-            teleporterCooldown.setAttribute("width", "100px");
             teleporterCooldown.setAttribute("min", "6");
             teleporterCooldown.setAttribute("max", "300");
             teleporterCooldown.setAttribute("step", "6");
             teleporterCooldown.setAttribute("value", "90");
-            teleporterCooldown.setAttribute("style", "margin-left:1em");
             let teleporterCooldownLabel = document.createElement("label");
             teleporterCooldownLabel.innerHTML = "Teleportation Cooldown";
             teleporterCooldownLabel.setAttribute("for", "teleporterCooldown");
@@ -1767,8 +1743,6 @@ window.onload = function() {
             let newInput = document.createElement("input");
             newInput.setAttribute("type", "range");
             newInput.setAttribute("id", "lifeSpan");
-            newInput.setAttribute("style", "margin-left: 1em");
-            newInput.setAttribute("width", "100px");
             newInput.setAttribute("min", "60");
             newInput.setAttribute("max", "1800");
             newInput.setAttribute("step", "30");
@@ -1955,14 +1929,18 @@ window.onload = function() {
         //update collision counter
         document.getElementById("boidCollisions").value = collisionCounter.getCount();
         //update reproduction counter, if visible on page
-        if (collisionMode == "collisionReproduce") {
+        if (collisionMode.includes("collisionReproduce") ) {
             document.getElementById("boidReproductions").value = reproductionCounter.getCount();
         }
         //update boid counter
         document.getElementById("boidPopulation").value = theBoids.length;
         //update prey counter, if visible on page
-        if (specialMode == "specialPredator") {
+        if (specialMode.includes("specialPredator") ) {
             document.getElementById("boidsPreyedUpon").value = preyCounter.getCount();
+        }
+        //update teleportation counter, if visible on page
+        if (specialMode.includes("specialTeleporter") ) {
+            document.getElementById("teleportations").value = teleportCounter.getCount();
         }
         //handle fps counter
         currTime = performance.now();
