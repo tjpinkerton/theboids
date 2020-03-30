@@ -1187,13 +1187,13 @@ window.onload = function() {
 
     let canvas = /** @type {HTMLCanvasElement} */ (document.getElementById("canvas"));
     let context = canvas.getContext("2d");
-    //Set canvas to more appropriate size--fill width of parent element, but limit height to 95% of viewport height (leaving a lil room for margins)
-    canvas.width = canvas.parentElement.clientWidth;
+    //Set canvas to more appropriate size--60% the width of document, but limit height to 95% of viewport height (leaving a lil room for margins)
+    canvas.width = document.getElementById("root").clientWidth * 0.6;
     canvas.height = window.innerHeight * 0.95;
 
-    //Make canvas resize, according to rules above, upon orientation change
-    window.onorientationchange = function() {
-        canvas.width = canvas.parentElement.clientWidth;
+    //Make canvas resize, according to rules above, upon any window resize
+    window.onresize = function() {
+        canvas.width = document.getElementById("root").clientWidth * 0.6;
         canvas.height = window.innerHeight * 0.95;
     };
 
@@ -1483,7 +1483,7 @@ window.onload = function() {
             //Create and add to DOM the predatorOptionsDiv
             let div = document.createElement("div");
             div.setAttribute("id", "predatorOptionsDiv");
-            document.getElementById("rightCell").appendChild(div);
+            document.getElementById("uiCell").appendChild(div);
             //Create and add to div the heading at top of sliders
             let heading = document.createElement("h4");
             heading.innerHTML = "Predator Options";
@@ -1636,7 +1636,7 @@ window.onload = function() {
             //Create and add to DOM the teleporterOptionsDiv
             let div = document.createElement("div");
             div.setAttribute("id", "teleporterOptionsDiv");
-            document.getElementById("rightCell").appendChild(div);
+            document.getElementById("uiCell").appendChild(div);
             //Create and add to div the heading at top of sliders
             let heading = document.createElement("h4");
             heading.innerHTML = "Teleporter Options";

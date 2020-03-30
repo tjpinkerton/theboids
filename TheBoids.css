@@ -1,5 +1,5 @@
 body {
-    font-size: 1vmax;
+    font-size: calc(0.4em + 0.6vmax);
 }
 
 div {
@@ -7,6 +7,7 @@ div {
 }
 
 button {
+    font-size: calc(0.75em + 0.2vmax);
     margin: 1em;
     padding: 0.2em;
     background-color: #dddddd;
@@ -30,6 +31,7 @@ input[type="text"] {
     max-width: 6em;
     margin: 0.5em;
     text-align: left;
+    font-size: 1em;
 }
 
 input[type="radio"].firstRadioOption {
@@ -37,7 +39,6 @@ input[type="radio"].firstRadioOption {
 }
 
 td.canvasCell {
-    width: 50vw;
     vertical-align: top;
 }
 
