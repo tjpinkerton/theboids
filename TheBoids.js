@@ -609,6 +609,10 @@ class Predator {
         this.y = y;
         this.vx = sizeMult*vx;
         this.vy = sizeMult*vy;
+        //Here so that Teleporters can steal the color values
+        this.r = 0;
+        this.g = 0;
+        this.b = 0;
         
         
         //Done to enable color change upon collision
@@ -847,8 +851,8 @@ class Teleporter {
      * @param {number} y    - initial Y position
      * @param {number} vx   - initial X velocity
      * @param {number} vy   - initial Y velocity
-     * @param {number} mx   - momentum in X direction
-     * @param {number} my   - momentum in Y direction
+     * @param {number} mx   - "momentum" in X direction
+     * @param {number} my   - "momentum" in Y direction
      */
     constructor(x,y,vx=0,vy=0,mx,my) {
         this.x = x;
@@ -857,6 +861,17 @@ class Teleporter {
         this.vy = vy;
         this.mx = mx;
         this.my = my;
+        //upon teleportation, stores the color values of the teleportee, and assumes that color until Teleportation Cooldown is complete
+        this.r = 0;
+        this.g = 0;
+        this.b = 0;
+        //for drawing of teleportation visual effect
+        this.vfxi = 0;
+        this.vfyi = 0;
+        this.vfxf = 0;
+        this.vfyf = 0;
+        this.vfTimer = -1;
+        this.vfDuration = 12;
           
         //Done to enable color change upon collision
         this.collision = 0;
@@ -872,23 +887,37 @@ class Teleporter {
     }
 
     /**
-     * Helper function to initiate color change upon teleportation-based collision.
+     * Helper function to handle details of teleportation-based collision (initiate color change, move teleportee, etc.).
      * 
      * Note: 3 frames of the teleport cooldown is "built-in" to the draw method below--for this brief time 
      * the Teleporter is still locked out of further teleportation (collision < 0) but is displayed as default, in order to help
      * the user distinguish between rapid subsequent teleportation events. Therefore, the cooldown must be greater
-     * than 3 frames--otherwise, the teleporter might never turn color. This is handled by the min value of the 
+     * than 3 frames--otherwise, the teleporter might never turn color. This is enforced by the min value of the 
      * Teleportation Cooldown slider input (currently 6).
      * 
      * @param {Predator, Boid} teleportee   - the teleported creature (Predator or Boid)     
      * @param {HTMLCanvasElement} canvas    - the canvas in which drawing context resides; passed in for location randomization (canvas.width, canvas.height) if needed
      */
     teleport(teleportee, canvas) {
-        let teleportCooldown = document.getElementById("teleporterCooldown").value;
-        this.collision = -teleportCooldown;
         //Send teleportee to random location
         teleportee.x = Math.random() * canvas.width;
         teleportee.y = Math.random() * canvas.height;
+        //Set color-changed state, and save color values of teleportee
+        let teleportCooldown = document.getElementById("teleporterCooldown").value;
+        this.collision = -teleportCooldown;
+        this.r = teleportee.r;
+        this.g = teleportee.g;
+        this.b = teleportee.b;
+        //Set visual effect values (start and end locations, and duration of visual effect)
+        this.vfxi = this.x;
+        this.vfyi = this.y;
+        this.vfxf = teleportee.x;
+        this.vfyf = teleportee.y;
+        this.vfTimer = this.vfDuration;
+        //Speed up the visual effect if it would otherwise get cut off by shortness of teleportation cd
+        if (this.vfDuration > teleportCooldown) {
+            this.vfTimer = teleportCooldown;
+        }
     }
 
     /**
@@ -908,7 +937,14 @@ class Teleporter {
         //Check for teleportation collision state--note, special case for 0 > collision > -3, to ensure visual clarity in case of rapid teleportations
         if (this.collision < 0) {
             if (this.collision < -3) {
-                context.fillStyle = "purple";
+                //Special case for Predator teleportees
+                if (this.r == 0 && this.g == 0 && this.b == 0) {
+                    context.fillStyle = "white";
+                }
+                //Normal case
+                else {
+                    context.fillStyle = "rgb(" + this.r + "," + this.g + "," + this.b + ")";
+                }
             }
             this.collision++;
         }
@@ -917,20 +953,55 @@ class Teleporter {
         context.ellipse(0,0,20,20,0,0,Math.PI*2);
         context.closePath();
         context.fill();
+        context.stroke();
 
         //To visualize collision radius
         let collisionCircleOn = document.getElementById("showCollisionRadius").checked;
         if (collisionCircleOn) { 
             let collisionSlider = /** @type {HTMLInputElement} */ (document.getElementById("teleporterCollisionRadius") );
             let collisionRadius = Number(collisionSlider.value);
+            //To help visualization on edge of Teleporter
+            if (collisionRadius == 20) {
+                collisionRadius = 19;
+            }
             context.beginPath();
             context.ellipse(0,0,collisionRadius,collisionRadius,0,0,Math.PI*2);
-            context.closePath();
-            context.strokeStyle = "gray";
+            if (collisionRadius <= 20) {
+                context.strokeStyle = "rgb(200,200,200)";
+            }
+            else {
+                context.strokeStyle = "gray";
+            }
+            
             context.stroke();
         }
 
         context.restore();
+
+        //Draw teleportation visual effect, if appropriate
+        if (this.collision < 0) {
+            if (this.vfTimer > 0) {
+                context.save();
+
+                //Calculate appropriate section of visual effect (interpolate begin and end locations)
+                let x1 = this.vfxi * (this.vfTimer)/this.vfDuration + this.vfxf * (this.vfDuration - this.vfTimer)/this.vfDuration;
+                let y1 = this.vfyi * (this.vfTimer)/this.vfDuration + this.vfyf * (this.vfDuration - this.vfTimer)/this.vfDuration;
+                this.vfTimer--;
+                let x2 = this.vfxi * (this.vfTimer)/this.vfDuration + this.vfxf * (this.vfDuration - this.vfTimer)/this.vfDuration;
+                let y2 = this.vfyi * (this.vfTimer)/this.vfDuration + this.vfyf * (this.vfDuration - this.vfTimer)/this.vfDuration;
+
+                //Set the color and draw effect section
+                context.strokeStyle = "rgb(" + this.r + "," + this.g + "," + this.b + ")";
+                context.lineWidth = 3;
+                context.beginPath();
+                context.moveTo(x1,y1);
+                context.lineTo(x2,y2);
+                context.closePath();
+                context.stroke();
+
+                context.restore();
+            }
+        }
     }
     
     /**
