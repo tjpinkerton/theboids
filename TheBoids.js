@@ -39,6 +39,7 @@ class Boid {
         
         //Done to enable color change upon collision
         this.collision = 0;
+        this.reproduction = 0;
 
         //Done to implement life-spans, if selected
         this.life = -1;
@@ -62,14 +63,14 @@ class Boid {
      * Helper function to initiate color change upon reproduction collisions.
      * 
      * Note: 3 frames of the reproduction cooldown is "built-in" to the draw method below--for this brief time 
-     * the Boid is still locked out of reproduction (collision < 0) but is displayed as white w/black border, 
+     * the Boid is still locked out of reproduction (collision < 0) but is displayed as normal, 
      * in order to help the user distinguish between rapid subsequent reproduction events. Therefore, the cooldown 
      * must be greater than 3 frames--otherwise, the boid would appear to always be ineligible for mating. 
      * This is handled by the min value of the Satiation Cooldown slider input (currently 6).
      */
     reproduce() {
         let reproductionCooldown = document.getElementById("reproduction").value;
-        this.collision = -reproductionCooldown;
+        this.reproduction = reproductionCooldown;
     }
 
     /**
@@ -95,24 +96,24 @@ class Boid {
             context.strokeStyle = "black";
             this.collision--;
         }
-        //Check for reproduction state--special case for 0 > collision > -3, to increase visual clarity around rapid subsequent reproduction events
-        if (this.collision < 0) {
-            if (this.collision < -3) {
+        //Check for reproduction state--special case for 0 < reproduction < 3, to increase visual clarity around rapid subsequent reproduction events
+        if (this.reproduction > 0) {
+            if (this.reproduction > 3) {
                 context.fillStyle = "white";
                 context.strokeStyle = "black";
             }
             //Check for Monogamous Reproduction mode
             if (document.getElementById("monogamy") ) {
                 if (document.getElementById("monogamy").checked) {
-                    //If checked, don't increment this.collision
+                    //If checked, don't decrement this.reproduction
                 }
                 else {
-                    this.collision++;
+                    this.reproduction--;
                 }
             }
             //In case checkbox for Monogamous Reproduction doesn't exist, but boids have recently reproduced
             else {
-                this.collision++;
+                this.reproduction--;
             }
         }
         //Update life state
@@ -400,7 +401,7 @@ class Boid {
      * Helper function (called by steer() ) to check for and handle boid-boid collisions, depending on the mode set by user.
      * Note: Collisions are assumed to always occur between two boids--if more than one boid is within the collisionRadius of "this" boid,
      *          only the collision with the first one (that is, the one that occurs first in the flock array) is dealt with here.
-     *          However, in these rare cases each additional boid will be checking for their own collisions, so no collision goes unaccounted for.
+     *          However, in these rare cases each additional boid will be checking for their own collisions, so no collision goes undealt with.
      * Note: This function is somewhat redundant--despite generally handling both sides of the collision, 
      *         it will always be called for both parties anyways (since both boids have their steer() called).
      *         Hence, the collisionCounter object knows to divide the count by 2 (to correct for double-counting collisions).
@@ -420,7 +421,7 @@ class Boid {
             return;
         }
 
-        //Check for boid-boid collisions--note that we also filter out any boids with identical position (they are in fact the same boid)
+        //Find all other boids within collision range--note that we also filter out any boids with identical position (they are in fact the same boid)
         //Note: We correct for the size multiplier, so that merge mode works right
         let sizeMult = Math.sqrt(this.mass);
         let collided = flock.filter( boid => {
@@ -430,17 +431,21 @@ class Boid {
 
          //Collide collisionMode
          if (collisionMode == "collisionCollide") {
-            //Check for a collision
-            if (collided[0] ) {
-                let newAngle = Math.atan2(this.y-collided[0].y, this.x-collided[0].x);
-                this.vx = Math.cos(newAngle);
-                this.vy = Math.sin(newAngle);
-                collided[0].vx = -Math.cos(newAngle);
-                collided[0].vy = -Math.sin(newAngle);                
-                collided[0].collide();
-                this.collide();                
-                //Update collisionCounter
-                collisionCounter.updateCount();
+            //Iterate through all boids within collision range
+            for (let i = 0; i < collided.length; i++) {
+                //If other boid hasn't yet collided this frame: redirect both, trigger color-change, and count the collision
+                if (collided[i].collision < 15) {
+                    let newAngle = Math.atan2(this.y - collided[0].y, this.x - collided[0].x);
+                    this.vx = Math.cos(newAngle);
+                    this.vy = Math.sin(newAngle);
+                    collided[0].vx = -Math.cos(newAngle);
+                    collided[0].vy = -Math.sin(newAngle);
+                    collided[0].collide();
+                    this.collide();
+                    //Update collisionCounter
+                    collisionCounter.updateCount();
+                }
+                //If other boid has already collided this frame, let it be
             }
         }
         
@@ -482,48 +487,51 @@ class Boid {
             }
         }
 
-        //Reproduce collisonMode -- NOTE: Reproductions have a "cooldown" period, as dictated by the parents "collision" state
+        //Reproduce collisonMode -- NOTE: Reproductions have a "cooldown" period, as dictated by the reproduction cooldown slider
         if (collisionMode == "collisionReproduce") {
-            //First, check if any collisions were detected
-            if (collided[0] ) {
-                //Try to find eligible coupling
-                let eligibleCoupleFound = false;
-                reproduction:
-                for (let i = 0; i < collided.length; i++) {
-                    //If eligible, perform reproduction according to the "Brood Size" setting, and break out of loop
-                    if (this.collision == 0 && collided[i].collision == 0) {
-                        //Find index of this boid in flock
-                        let currBoidIndex = flock.indexOf(this);
-                        //Find index of secondary colliding boid
-                        let secondaryBoidIndex = flock.indexOf(collided[0] );
-                        //Check if both colliding boids were found by index in the flock--if not, we can't remove them (and also, why couldn't we find them???)
-                        if (currBoidIndex > -1 && secondaryBoidIndex > -1) {
-                            let currBoid = flock[currBoidIndex];
-                            let secondaryBoid = flock[secondaryBoidIndex];
-                            
-                            //Handle baby-making via helper method (below)
-                            this.handleReproduction(flock, currBoid, secondaryBoid, reproductionCounter, collisionCounter);
-                            
-                            //Update boolean flag and break out of loop
-                            eligibleCoupleFound = true;
-                            break reproduction;
-                        } 
-                        else throw new Error("Boids from collided[] not found in flock[] during reproduction procedure--this should not be possible, something has gone wrong!");
+            //Try to find eligible coupling
+            let eligibleCoupleFound = false;
+            reproduction:
+            for (let i = 0; i < collided.length; i++) {
+                //Coupling is eligible if neither is in collided state or reproduced state
+                if (this.collision == 0 && this.reproduction == 0 && collided[i].collision == 0 && collided[i].reproduction == 0) {
+                    //Find index of this boid in flock
+                    let currBoidIndex = flock.indexOf(this);
+                    //Find index of secondary colliding boid
+                    let secondaryBoidIndex = flock.indexOf(collided[0]);
+                    //Check if both colliding boids were found by index in the flock--if not, we can't remove them (and also, why couldn't we find them???)
+                    if (currBoidIndex > -1 && secondaryBoidIndex > -1) {
+                        let currBoid = flock[currBoidIndex];
+                        let secondaryBoid = flock[secondaryBoidIndex];
+
+                        //Handle baby-making via helper method (below)
+                        this.handleReproduction(flock, currBoid, secondaryBoid, reproductionCounter, collisionCounter);
+
+                        //Update boolean flag and break out of loop
+                        eligibleCoupleFound = true;
+                        break reproduction;
                     }
+                    else throw new Error("Boids from collided[] not found in flock[] during reproduction procedure--this should not be possible, something has gone wrong!");
                 }
-                //If no eligible couples found, deal with collision as usual
-                if (eligibleCoupleFound == false) {
-                    let newAngle = Math.atan2(this.y - collided[0].y, this.x - collided[0].x);
-                    this.vx = Math.cos(newAngle);
-                    this.vy = Math.sin(newAngle);
-                    collided[0].vx = -Math.cos(newAngle);
-                    collided[0].vy = -Math.sin(newAngle);
-                    this.collide();
-                    collided[0].collide();
-                    collisionCounter.updateCount();
+            }
+            //If no eligible couples found, deal with collision as usual
+            if (eligibleCoupleFound == false) {
+                for (let i = 0; i < collided.length; i++) {
+                    //Check if other boid has collided/reproduced this frame: if not, perform and count collision
+                    if (collided[i].collision < 15 && collided[i].reproduction < document.getElementById("reproduction").value) {
+                        let newAngle = Math.atan2(this.y - collided[0].y, this.x - collided[0].x);
+                        this.vx = Math.cos(newAngle);
+                        this.vy = Math.sin(newAngle);
+                        collided[0].vx = -Math.cos(newAngle);
+                        collided[0].vy = -Math.sin(newAngle);
+                        this.collide();
+                        collided[0].collide();
+                        collisionCounter.updateCount();
+                    }
                 }
             }
         }
+
     }
 
     /**
@@ -554,8 +562,13 @@ class Boid {
             let bNew = firstBoid.b*bRand + secondBoid.b*(1-bRand);
             let xAvg = (firstBoid.x + secondBoid.x) / 2;
             let yAvg = (firstBoid.y + secondBoid.y) / 2;
-            let xDelta = Math.random()*2*broodSize*collisionRadius - broodSize*collisionRadius;
-            let yDelta = Math.random()*2*broodSize*collisionRadius - broodSize*collisionRadius;
+            let xDelta = 0;
+            let yDelta = 0;
+            //Generate an x and y offset distance for the child large enough so that a collision with it isn't inevitable
+            do {    xDelta = (Math.random()*10 - 5)*collisionRadius;
+            } while ( (xDelta < 2*collisionRadius && xDelta >= 0) || (xDelta > -2*collisionRadius && xDelta <= 0) );
+            do {    yDelta = (Math.random()*10 - 5)*collisionRadius;
+            } while ( (yDelta < 2*collisionRadius && yDelta >= 0) || (yDelta > -2*collisionRadius && yDelta <= 0) );
             let xNew = xAvg + xDelta;
             let yNew = yAvg + yDelta;
             let direction = Math.atan2(xNew - xAvg, yNew - yAvg);
@@ -580,8 +593,6 @@ class Boid {
         secondBoid.reproduce();
         //Update reproductionCounter
         reproductionCounter.updateCount();
-        //Note--this is needed to counter-act the second parent detecting a normal collision between the pair
-        collisionCounter.decrementCount();
     }
 
 }
@@ -1158,9 +1169,9 @@ class CollisionCounter {
     decrementCount() {
         this.count--;
     }
-    //Note: Halves the count, because each collision is double-reported (once from each boid)
+    //Update: Count no longer halved, as Boid.handleCollision() no longer double-counts collisions
     getCount() {
-        return this.count/2;
+        return this.count;
     }
     resetCount() {
         this.count = 0;
@@ -1458,6 +1469,7 @@ window.onload = function() {
             newInput.setAttribute("value", "0");
             let newLabel = document.createElement("label");
             newLabel.setAttribute("for", "boidReproductions");
+            newLabel.setAttribute("style", "margin-left: 1em");
             newLabel.innerHTML = "Boid Reproductions: ";
             document.getElementById("boidPopulation").parentElement.appendChild(document.createElement("br") );
             document.getElementById("boidPopulation").parentElement.appendChild(newLabel);
