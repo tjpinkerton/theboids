@@ -167,6 +167,7 @@ class Boid {
      * 
      * @param {Array<Boid>} flock - array of all Boids on the screen
      * @param {Array<Predator>} predators - array of all Predators on screen (if any)
+     * @param {Array<Beacon>} beacons - array of all Beacons on screen (if any)
      * @param {String} behaviorMode - describes the steering behavior of the boids
      * @param {String} collisionMode - describes the collision behavior of the boids
      * @param {String} specialMode - certain special modes which override the other settings
@@ -174,11 +175,71 @@ class Boid {
      * @param {ReproductionCounter} reproductionCounter - Obj that exists outside the boids, keeps track of reproduction events (special collisions, which spawn a new boid)
      * @param {PreyCounter} preyCounter - Obj that exists outside the boids, keeps track of boids preyed upon (in Predator special mode)
      */
-    steer(flock, predators, behaviorMode, collisionMode, specialMode, collisionCounter, reproductionCounter) { 
+    steer(flock, predators, beacons, behaviorMode, collisionMode, specialMode, collisionCounter, reproductionCounter) { 
         let neighborhoodSlider = /** @type {HTMLInputElement} */ (document.getElementById("neighborhood") );
         let neighborhoodRange = Number(neighborhoodSlider.value);
         let turnSpeedSlider = /** @type {HTMLInputElement} */ (document.getElementById("turnSpeed") );
         let turnSpeed = Number(turnSpeedSlider.value) * Math.PI/180;
+
+        //Check if we are in special mode Beacon
+        if (specialMode.includes("specialBeacon") ) {
+            //Find any beacons within this boid's neighborhood
+            let beckoning = beacons.filter(beacon => {
+                let distance = Math.sqrt( Math.pow(this.x-beacon.x, 2) + Math.pow(this.y-beacon.y, 2) );
+                return distance < neighborhoodRange;
+            } );
+            //If there are beacons in neighborhood, steer appropriately
+            if (beckoning.length > 0) {
+                //Find nearest beacon
+                beckoning.sort((a, b) => {
+                    let distanceA = Math.sqrt(Math.pow(this.x - a.x, 2) + Math.pow(this.y - a.y, 2));
+                    let distanceB = Math.sqrt(Math.pow(this.x - b.x, 2) + Math.pow(this.y - b.y, 2));
+                    if (distanceA < distanceB) {
+                        return -1;
+                    }
+                    else if (distanceA > distanceB) {
+                        return 1;
+                    }
+                    else {
+                        return 0;
+                    }
+                });
+
+                let attract = beckoning[0];
+
+                //Calculate new direction--towards nearest boid (within restraint of turn speed)
+                let angle = Math.atan2(this.vy, this.vx);
+                let newAngle = angle;
+                //Make sure there is a boid within neighborhood range
+                if (attract) {
+                    let attractedAngle = Math.atan2(attract.y - this.y, attract.x - this.x);
+                    //If nearly aligned with attractdAngle, simply set to it (avoids oversteering) -- second condition below for when nearly aligned but on opposite sides of +X-axis
+                    if ((Math.abs(attractedAngle - angle) < turnSpeed) || (Math.abs(attractedAngle - angle) > Math.PI * 2 - turnSpeed)) {
+                        newAngle = attractedAngle;
+                    }
+                    //If attractdAngle - angle is between 0 and pi, or -2pi and -pi, then turn counterclockwise (increase angle)
+                    else if (((attractedAngle - angle < Math.PI) && (attractedAngle - angle > 0)) || (attractedAngle - angle < -Math.PI)) {
+                        newAngle = angle + turnSpeed;
+                    }
+                    //If attractdAngle - angle is between pi and 2pi, or -pi and 0, then turn clockwise (decrease angle)
+                    else if ((attractedAngle - angle >= Math.PI) || ((attractedAngle - angle <= 0) && (attractedAngle - angle >= -Math.PI))) {
+                        newAngle = angle - turnSpeed;
+                    }
+                }
+
+                //Update velocity--note, we go out of our way to not re-unitize it, so that merge collisions can work as intended
+                let currSpeed = Math.sqrt(Math.pow(this.vx, 2) + Math.pow(this.vy, 2));
+                this.vx = currSpeed * Math.cos(newAngle);
+                this.vy = currSpeed * Math.sin(newAngle);
+
+                //Handle collisions via helper function--note, this is kind of wasteful since we've already sorted the flock by proximity, and are now filtering it again
+                this.handleCollision(flock, collisionMode, collisionCounter, reproductionCounter);
+
+                //Return now (to override other steering considerations)
+                return;
+            }
+            //If no beacons in neighborhood, continue steering behavior as usual
+        }
 
         //Check if we are in special mode Predator
         if (specialMode.includes("specialPredator") ) {
@@ -736,12 +797,71 @@ class Predator {
      * @param {String} specialMode - the special setting modes--such as "specialPredator" mode
      * @param {PreyCounter} preyCounter - obj to keep track of Boids consumed by predators
      */
-    steer(boids, predators, specialMode, preyCounter) {
+    steer(boids, predators, beacons, specialMode, preyCounter) {
         let neighborhoodSlider = /** @type {HTMLInputElement} */ (document.getElementById("predatorNeighborhood") );
         let neighborhoodRange = Number(neighborhoodSlider.value);
         let turnSpeedSlider = /** @type {HTMLInputElement} */ (document.getElementById("predatorTurnSpeed") );
         let turnSpeed = Number(turnSpeedSlider.value) * Math.PI/180;
 
+        //Check if we are in special mode Beacon
+        if (specialMode.includes("specialBeacon") ) {
+            //Find any beacons within this predators's neighborhood
+            let beckoning = beacons.filter(beacon => {
+                let distance = Math.sqrt( Math.pow(this.x-beacon.x, 2) + Math.pow(this.y-beacon.y, 2) );
+                return distance < neighborhoodRange;
+            } );
+            //If there are beacons in neighborhood, steer appropriately
+            if (beckoning.length > 0) {
+                //Find nearest beacon
+                beckoning.sort((a, b) => {
+                    let distanceA = Math.sqrt(Math.pow(this.x - a.x, 2) + Math.pow(this.y - a.y, 2));
+                    let distanceB = Math.sqrt(Math.pow(this.x - b.x, 2) + Math.pow(this.y - b.y, 2));
+                    if (distanceA < distanceB) {
+                        return -1;
+                    }
+                    else if (distanceA > distanceB) {
+                        return 1;
+                    }
+                    else {
+                        return 0;
+                    }
+                });
+
+                let attract = beckoning[0];
+
+                //Calculate new direction--towards nearest boid (within restraint of turn speed)
+                let angle = Math.atan2(this.vy, this.vx);
+                let newAngle = angle;
+                //Make sure there is a boid within neighborhood range
+                if (attract) {
+                    let attractedAngle = Math.atan2(attract.y - this.y, attract.x - this.x);
+                    //If nearly aligned with attractdAngle, simply set to it (avoids oversteering) -- second condition below for when nearly aligned but on opposite sides of +X-axis
+                    if ((Math.abs(attractedAngle - angle) < turnSpeed) || (Math.abs(attractedAngle - angle) > Math.PI * 2 - turnSpeed)) {
+                        newAngle = attractedAngle;
+                    }
+                    //If attractdAngle - angle is between 0 and pi, or -2pi and -pi, then turn counterclockwise (increase angle)
+                    else if (((attractedAngle - angle < Math.PI) && (attractedAngle - angle > 0)) || (attractedAngle - angle < -Math.PI)) {
+                        newAngle = angle + turnSpeed;
+                    }
+                    //If attractdAngle - angle is between pi and 2pi, or -pi and 0, then turn clockwise (decrease angle)
+                    else if ((attractedAngle - angle >= Math.PI) || ((attractedAngle - angle <= 0) && (attractedAngle - angle >= -Math.PI))) {
+                        newAngle = angle - turnSpeed;
+                    }
+                }
+
+                //Update velocity--note, we go out of our way to not re-unitize it, so that merge collisions can work as intended
+                let currSpeed = Math.sqrt(Math.pow(this.vx, 2) + Math.pow(this.vy, 2));
+                this.vx = currSpeed * Math.cos(newAngle);
+                this.vy = currSpeed * Math.sin(newAngle);
+
+                //Handle collisions via helper function--note, this is kind of wasteful since we've already sorted the flock by proximity, and are now filtering it again
+                this.handleCollision(boids, predators, specialMode, preyCounter);
+
+                //Return now (to override other steering considerations)
+                return;
+            }
+            //If no beacons in neighborhood, continue steering behavior as usual
+        }
         //Filter to just the boids within neighborhood range
         let neighbors = boids.filter(boid => {
             let distance = Math.sqrt( Math.pow(this.x-boid.x, 2) + Math.pow(this.y-boid.y, 2) );
@@ -1156,6 +1276,45 @@ class Teleporter {
     }
 }
 
+/**
+ * This is only used in special mode Beacon. It is a point on the canvas, placed by the user (by clicking on canvas), which overrides 
+ * other Boid steering behavior and causes them to turn towards it.
+ */
+class Beacon {
+
+    /**
+     * 
+     * 
+     * @param {Number} x - x position of the Beacon
+     * @param {Number} y - y position of the Beacon
+     */
+    constructor(x, y) {
+        this.x = x;
+        this.y = y;
+    }
+
+    /**
+     * Draw the beacon.
+     * @param {CanvasRenderingContext2D} context 
+     */
+    draw (context) {
+        context.save();
+        context.translate(this.x, this.y);
+
+        context.fillStyle = "yellow";
+        context.strokeStyle = "black";
+        context.setLineDash([4, 2]);
+
+        context.beginPath();
+        context.arc(0, 0, 12, 0, Math.PI*2);
+        context.closePath();
+        context.fill();
+        context.stroke();
+
+        context.restore();
+    }
+}
+
 
 //Set-up counter for boid collisions--has to be an object so that it can be passed to boid methods as a reference (rather than a simple value)
 class CollisionCounter {
@@ -1266,6 +1425,10 @@ window.onload = function() {
     let thePredators = [];
     /** @type Array<Teleporter> */
     let theTeleporters = [];
+    /** @type Array<Beacon> */
+    let theBeacons = [];
+
+    let mousex, mousey;
 
     let canvas = /** @type {HTMLCanvasElement} */ (document.getElementById("canvas"));
     let context = canvas.getContext("2d");
@@ -1303,6 +1466,7 @@ window.onload = function() {
      */
     function draw() {
         context.clearRect(0,0,canvas.width,canvas.height);
+        theBeacons.forEach(beacon => beacon.draw(context) );
         theBoids.forEach(boid => boid.draw(context) );
         thePredators.forEach(predator => predator.draw(context) );
         theTeleporters.forEach(teleporter => teleporter.draw(context) );
@@ -1338,6 +1502,7 @@ window.onload = function() {
         theBoids = [];
         thePredators = [];
         theTeleporters = [];
+        theBeacons = [];
         collisionCounter.resetCount();
         reproductionCounter.resetCount();
         preyCounter.resetCount();
@@ -1818,6 +1983,46 @@ window.onload = function() {
     };
 
     /**
+     * Handle the enabling/disabling of the Beacon special mode
+     */
+    this.document.getElementById("specialBeacon").onclick = function () {
+        //Check whether we need to enable or disable
+        if (document.getElementById("specialBeacon").checked) {
+            //Enable special mode Beacon
+            specialMode += "specialBeacon";
+
+            //Set up event handler listening to mouse input on the canvas
+            canvas.onclick = function (event) {
+                //Find any pre-existing beacons that were clicked on
+                let clickedOn = theBeacons.filter(beacon => Math.sqrt(Math.pow(event.offsetX-beacon.x, 2) + Math.pow(event.offsetY-beacon.y, 2) ) < 12 );
+
+                //If beacon(s) were clicked on, remove them
+                if (clickedOn.length > 0) {
+                    for (let i = 0; i < clickedOn.length; i++) {
+                        let removalIndex = theBeacons.indexOf(clickedOn[i] );
+                        theBeacons.splice(removalIndex, 1);
+                    }
+                }
+                //If none were clicked on, create a new one
+                else {
+                    theBeacons.push(new Beacon(event.offsetX, event.offsetY) );
+                }  
+            };
+        }
+        else {
+            //Disable special mode Beacon
+            let index = specialMode.indexOf("specialBeacon");
+            specialMode = specialMode.slice(0, index) + specialMode.slice(index+13);
+
+            //Reset beacon array
+            theBeacons = [];
+
+            //Reset .onclick event for canvas (so new Beacons aren't still spawned)
+            canvas.onclick = function() {};
+        }
+    };
+
+    /**
      * Handle the enabling of Life Span special option (checkbox)
      */
     this.document.getElementById("limitedLifeSpan").onclick = function() {
@@ -1913,7 +2118,7 @@ window.onload = function() {
             }
         } );
         // change directions
-        theBoids.forEach(boid => boid.steer(theBoids, thePredators, behaviorMode, collisionMode, specialMode, collisionCounter, reproductionCounter) );
+        theBoids.forEach(boid => boid.steer(theBoids, thePredators, theBeacons, behaviorMode, collisionMode, specialMode, collisionCounter, reproductionCounter) );
         // move forward
         let boidSpeed = document.getElementById("speed").value;
         theBoids.forEach(function(boid) {
@@ -1942,7 +2147,7 @@ window.onload = function() {
         // Handle predators, if needed
         if (specialMode.includes("specialPredator") ) {
             // change directions
-            thePredators.forEach(predator => predator.steer(theBoids, thePredators, specialMode, preyCounter) );
+            thePredators.forEach(predator => predator.steer(theBoids, thePredators, theBeacons, specialMode, preyCounter) );
             // move forward
             let predatorSpeed = document.getElementById("predatorSpeed").value;
             thePredators.forEach(predator => {
